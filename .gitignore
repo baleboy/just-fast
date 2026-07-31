@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Per-developer Claude Code settings (CLAUDE.md is shared and stays tracked)
+.claude/settings.local.json
+
+# Xcode — per-user state, already present in this project under
+# JustFast.xcodeproj/**/xcuserdata/ and not worth committing.
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# Build products
+build/
+DerivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
