@@ -22,7 +22,7 @@ Streaks are strict by design: no freezes, no rest days. A goal day is a calendar
 
 **Notifications.** A celebratory alert when you hit your goal, and a start reminder that follows your eating window — it fires when the window closes, or at your chosen time if that comes first, never twice in a day.
 
-**Shortcuts, Siri and Back Tap.** `Start`, `End` and a state-aware `Toggle` intent, all exposed as App Shortcuts. Toggle asks for confirmation, which is what makes it safe to bind to a Back Tap double-tap — the app's headline interaction.
+**Shortcuts, Siri and Back Tap.** "Hey Siri, start fasting" / "stop fasting" — Start and End ship as App Shortcuts, with app-name aliases so the phrase reads naturally. A state-aware `Toggle` intent lives in the Shortcuts app and asks for confirmation, which is what makes it safe to bind to a Back Tap double-tap — the app's headline interaction.
 
 **Calm by default.** Deep aubergine or cream paper rather than a clinical white dashboard, rounded numerals, and celebrations that last under a second and respect Reduce Motion. Missing a goal is reported neutrally, never with shame.
 

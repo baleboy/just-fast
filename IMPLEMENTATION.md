@@ -58,7 +58,9 @@ appears after denying the prompt.
 **App Intents / Shortcuts / Siri / Back Tap (§4.6)** —
 `Intents/FastIntents.swift`: `StartFastIntent`, `EndFastIntent`,
 `ToggleFastIntent` (state-aware confirmation) + `AppShortcutsProvider`. All write
-through `FastStore` and reload widgets.
+through `FastStore` and reload widgets. Only Start/End are App Shortcuts; the
+`INAlternativeAppNames` aliases in `Info.plist` make "Hey Siri, start fasting"
+work. Toggle stays a Shortcuts-app action for Back Tap.
 
 ## Deferred (need additional Xcode targets — not added here)
 

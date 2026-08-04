@@ -93,22 +93,23 @@ struct ToggleFastIntent: AppIntent {
 
 // MARK: - App Shortcuts (zero-setup, Siri-invocable)
 
+/// Every phrase has to contain `\(.applicationName)` — that's an App Intents
+/// requirement, not a style choice. The `INAlternativeAppNames` aliases in
+/// Info.plist ("Fasting", "Fast") are what make the bare-verb phrasings work:
+/// "Start \(.applicationName)" resolves to "Hey Siri, start fasting" as well as
+/// "start Just Fast" (§4.6).
+///
+/// Toggle Fast is deliberately absent here — it stays available in the
+/// Shortcuts app for Back Tap, but Siri only offers the unambiguous pair.
 struct JustFastShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
-            intent: ToggleFastIntent(),
-            phrases: [
-                "Toggle my fast in \(.applicationName)",
-                "\(.applicationName) toggle fast"
-            ],
-            shortTitle: "Toggle Fast",
-            systemImageName: "timer"
-        )
-        AppShortcut(
             intent: StartFastIntent(),
             phrases: [
-                "Start my fast in \(.applicationName)",
-                "Start fasting with \(.applicationName)"
+                "Start \(.applicationName)",
+                "Start a \(.applicationName)",
+                "Start my \(.applicationName)",
+                "Begin \(.applicationName)"
             ],
             shortTitle: "Start Fast",
             systemImageName: "play.circle"
@@ -116,8 +117,10 @@ struct JustFastShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: EndFastIntent(),
             phrases: [
-                "End my fast in \(.applicationName)",
-                "Stop fasting with \(.applicationName)"
+                "Stop \(.applicationName)",
+                "End \(.applicationName)",
+                "End my \(.applicationName)",
+                "Break \(.applicationName)"
             ],
             shortTitle: "End Fast",
             systemImageName: "stop.circle"

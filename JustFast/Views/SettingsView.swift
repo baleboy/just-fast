@@ -160,9 +160,10 @@ private struct BackTapTip: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.primaryText)
             Text("""
-            1. Open Settings → Accessibility → Touch → Back Tap
-            2. Choose Double Tap
-            3. Scroll to Shortcuts and pick “Toggle Fast”
+            1. In the Shortcuts app, make a shortcut with the single action “Toggle Fast” and name it Toggle Fast
+            2. Open Settings → Accessibility → Touch → Back Tap
+            3. Choose Double Tap
+            4. Scroll to Shortcuts and pick “Toggle Fast”
             """)
             .font(.caption)
             .foregroundStyle(Theme.secondaryText)
