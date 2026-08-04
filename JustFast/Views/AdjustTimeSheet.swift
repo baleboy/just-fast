@@ -22,8 +22,12 @@ struct AdjustTimeSheet: View {
     var earliest: Date? = nil
     @State var date: Date
     let onConfirm: (Date) -> Void
+    /// Optional escape hatch shown beneath the confirm button — used by the end-fast
+    /// sheet to discard a fast that was started by mistake (§4.1).
+    var destructive: (label: String, confirmTitle: String, action: () -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @State private var showDestructiveConfirm = false
 
     private let quickOffsets: [(label: String, seconds: TimeInterval)] = [
         ("−15m", 15 * 60),
@@ -64,6 +68,14 @@ struct AdjustTimeSheet: View {
                 .background(accent, in: .capsule)
                 .foregroundStyle(Theme.background)
                 .padding(.horizontal)
+
+                if let destructive {
+                    Button(destructive.label, role: .destructive) {
+                        showDestructiveConfirm = true
+                    }
+                    .font(.subheadline)
+                    .padding(.top, 2)
+                }
             }
             .padding(.top, 8)
             .padding(.bottom, 12)
@@ -72,6 +84,18 @@ struct AdjustTimeSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                }
+            }
+            .confirmationDialog(
+                destructive?.confirmTitle ?? "",
+                isPresented: $showDestructiveConfirm,
+                titleVisibility: .visible
+            ) {
+                if let destructive {
+                    Button(destructive.label, role: .destructive) {
+                        destructive.action()
+                        dismiss()
+                    }
                 }
             }
         }

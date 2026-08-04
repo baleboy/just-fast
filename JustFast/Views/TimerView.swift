@@ -98,8 +98,16 @@ struct TimerView: View {
                 actionLabel: "End fast",
                 accent: Theme.mint,
                 earliest: openFast?.start,
-                date: Date()
-            ) { date in perform { try store.endFast(at: date) } }
+                date: Date(),
+                onConfirm: { date in perform { try store.endFast(at: date) } },
+                destructive: openFast.map { fast in
+                    (
+                        label: "Delete fast",
+                        confirmTitle: "Delete this fast? It won’t be recorded.",
+                        action: { store.delete(fast) }
+                    )
+                }
+            )
         }
         .alert("Couldn’t save", isPresented: .constant(errorMessage != nil)) {
             Button("OK") { errorMessage = nil }
@@ -111,6 +119,9 @@ struct TimerView: View {
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("-showStartSheet") {
                 showStartSheet = true
+            }
+            if ProcessInfo.processInfo.arguments.contains("-showEndSheet") {
+                showEndSheet = true
             }
             #endif
         }
