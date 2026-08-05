@@ -10,7 +10,9 @@ No accounts, no backend, no analytics, no subscriptions. Your data stays on your
 
 ## Features
 
-**Timer.** One progress ring covering the whole cycle: amber while you're fasting, blooming to mint once you pass the goal and continuing to count, then lilac for the eating window that follows, counting down to when the next fast is due. Each state shows the window's length, a live readout, and the clock time it ends.
+**Timer.** One progress ring covering the whole cycle: amber while you're fasting, blooming to mint once you pass the goal and continuing to count, then lilac for the eating window that follows, counting down to when the next fast is due. Each state shows a live readout and the clock time it ends.
+
+**Your schedule doesn't drift.** You pick the time you start fasting, and the eating window closes at that time every day. Fast two hours longer than planned and you've spent two hours of today's eating window — you haven't pushed tomorrow's start two hours later.
 
 **Protocols.** 14:10, 16:8, 18:6, 20:4 and OMAD (23:1). The goal is snapshotted when a fast starts, so changing protocol never rewrites history.
 
@@ -20,7 +22,7 @@ Streaks are strict by design: no freezes, no rest days. A goal day is a calendar
 
 **History and editing.** Reverse-chronological, grouped by month. Edit start, end or note; add a fast you forgot to log; delete. Validated against overlaps, backwards times and implausible durations.
 
-**Notifications.** A celebratory alert when you hit your goal, and a start reminder that follows your eating window — it fires when the window closes, or at your chosen time if that comes first, never twice in a day.
+**Notifications.** A celebratory alert when you hit your goal, and a daily start reminder at your chosen start time — the same moment your eating window closes. Suppressed automatically while a fast is already running.
 
 **Shortcuts, Siri and Back Tap.** "Hey Siri, start fasting" / "stop fasting" — Start and End ship as App Shortcuts, with app-name aliases so the phrase reads naturally. A state-aware `Toggle` intent lives in the Shortcuts app and asks for confirmation, which is what makes it safe to bind to a Back Tap double-tap — the app's headline interaction.
 

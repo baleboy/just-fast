@@ -115,74 +115,54 @@ nonisolated enum FastingEngine {
     static let eatingWindowStaleAfter: TimeInterval = 24 * 3600
 
     /// The eating window currently in progress, or `nil` when there isn't one to
-    /// show: a fast is running, no fast has ever been closed, or the last one
-    /// ended longer ago than `staleAfter`.
+    /// show: a fast is running, no fast has ever been closed, the last one ended
+    /// longer ago than `staleAfter`, or the user is already past due (below).
     ///
-    /// - Parameter eatingHours: the *current* protocol's eating window. The
-    ///   window is forward-looking — it says when the next fast is due — and the
-    ///   next fast will use the current protocol, so a protocol change mid-window
-    ///   resizes it. Stored fasts are never touched (§6).
+    /// - Parameter anchor: the wall-clock time the user starts their fast, as
+    ///   hour/minute components. The window closes at the next occurrence of it,
+    ///   so the schedule never drifts: fasting past plan costs eating time rather
+    ///   than pushing tomorrow's start later, and breaking early buys eating time
+    ///   back. The protocol's `eatingHours` describes the shape of an on-plan day
+    ///   but never sets this window's length.
     static func currentEatingWindow(
         _ fasts: [FastRecord],
-        eatingHours: Int,
+        anchor: DateComponents,
         now: Date,
+        timeZone: TimeZone,
         staleAfter: TimeInterval = eatingWindowStaleAfter
     ) -> EatingWindow? {
         guard openFast(fasts) == nil else { return nil }
-        guard let lastEnd = fasts.compactMap(\.end).filter({ $0 <= now }).max() else { return nil }
-        guard now.timeIntervalSince(lastEnd) < staleAfter else { return nil }
-        return EatingWindow(start: lastEnd, goalHours: eatingHours)
-    }
 
-    // MARK: Start reminders
+        // The most recently *closed* fast. A retroactively-added fast ending in
+        // the future must not anchor a window that hasn't opened yet.
+        let closed = fasts.compactMap { record -> (record: FastRecord, end: Date)? in
+            guard let end = record.end, end <= now else { return nil }
+            return (record, end)
+        }
+        guard let last = closed.max(by: { $0.end < $1.end }) else { return nil }
+        guard now.timeIntervalSince(last.end) < staleAfter else { return nil }
 
-    /// How many start reminders are scheduled ahead. The reminder can't be a
-    /// single repeating trigger any more — the next one may have to move to the
-    /// eating window's end — so a rolling batch of one-shots stands in for it,
-    /// keeping the old "keeps firing even if the app is never opened" property.
-    static let startReminderDaysAhead = 7
-
-    /// When the upcoming "time to start your fast?" reminders should fire (§4.4).
-    ///
-    /// The first one is the eating window's end when that lands *before* the next
-    /// daily reminder — the window knows when the next fast is actually due. If
-    /// the window would push the reminder later than the time the user chose, the
-    /// chosen time wins and the window reminder is dropped, so a day never gets
-    /// two nudges. Everything after the first is the plain daily cadence.
-    static func startReminderDates(
-        hour: Int,
-        minute: Int,
-        eatingWindowEnd: Date?,
-        now: Date,
-        timeZone: TimeZone,
-        daysAhead: Int = startReminderDaysAhead
-    ) -> [Date] {
-        guard daysAhead > 0 else { return [] }
         let cal = calendar(for: timeZone)
-        let daily = DateComponents(hour: hour, minute: minute)
-        guard let nextDaily = cal.nextDate(after: now, matching: daily, matchingPolicy: .nextTime) else {
-            return []
+        guard let end = cal.nextDate(after: last.end, matching: anchor, matchingPolicy: .nextTime) else {
+            return nil
         }
 
-        let first: Date
-        if let end = eatingWindowEnd, end > now, end < nextDaily {
-            first = end
-        } else {
-            first = nextDaily
+        // The fast ran past its goal *and* past the user's own next start time —
+        // they're already due, so there's no window left to count down. Without
+        // this the next anchor is nearly a day out and the timer would show an
+        // absurd ~24h window.
+        //
+        // Measured from the goal, not the fast's start: starting a few minutes
+        // either side of the anchor is the on-plan case and must not count as a
+        // missed one.
+        let goalReachedAt = last.record.goalReachedAt
+        if goalReachedAt < last.end,
+           let missed = cal.nextDate(after: goalReachedAt, matching: anchor, matchingPolicy: .nextTime),
+           missed <= last.end {
+            return nil
         }
 
-        var dates = [first]
-        var cursor = first
-        // `daysAhead + 1` iterations at most: one may be skipped as a same-day
-        // duplicate of the window reminder.
-        for _ in 0..<(daysAhead + 1) where dates.count < daysAhead {
-            guard let next = cal.nextDate(after: cursor, matching: daily, matchingPolicy: .nextTime) else { break }
-            cursor = next
-            // The window reminder already covered its own day.
-            guard !cal.isDate(next, inSameDayAs: first) else { continue }
-            dates.append(next)
-        }
-        return dates
+        return EatingWindow(start: last.end, end: end)
     }
 
     // MARK: Rolling windows
@@ -262,18 +242,18 @@ nonisolated enum FastingEngine {
 nonisolated struct EatingWindow: Equatable, Sendable {
     /// When the last fast ended — the instant the eating window opened.
     let start: Date
-    /// Length of the eating window in hours.
-    let goalHours: Int
+    /// When the next fast is due: the user's daily start-time anchor.
+    let end: Date
 
-    var goalInterval: TimeInterval { TimeInterval(goalHours) * 3600 }
-
-    /// When the next fast is due to start.
-    var endsAt: Date { start.addingTimeInterval(goalInterval) }
+    /// This window's length. Unlike the fast's goal it is *not* fixed — it's
+    /// whatever the anchor leaves once the fast actually ended. That's the point:
+    /// a long fast shortens today's window instead of moving tomorrow's start.
+    var goalInterval: TimeInterval { max(0, end.timeIntervalSince(start)) }
 
     func elapsed(asOf now: Date) -> TimeInterval { max(0, now.timeIntervalSince(start)) }
 
     /// Time left before the next fast is due; negative once the window is over.
-    func remaining(asOf now: Date) -> TimeInterval { endsAt.timeIntervalSince(now) }
+    func remaining(asOf now: Date) -> TimeInterval { end.timeIntervalSince(now) }
 
     /// 0...∞ — exceeds 1 once the window has been over for a while.
     func progress(asOf now: Date) -> Double {
@@ -281,7 +261,7 @@ nonisolated struct EatingWindow: Equatable, Sendable {
         return elapsed(asOf: now) / goalInterval
     }
 
-    func isOver(asOf now: Date) -> Bool { now >= endsAt }
+    func isOver(asOf now: Date) -> Bool { now >= end }
 }
 
 nonisolated struct StatsSummary: Equatable, Sendable {

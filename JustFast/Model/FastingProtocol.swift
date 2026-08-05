@@ -28,7 +28,9 @@ nonisolated enum FastingProtocol: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Length of the eating window in hours.
+    /// Eating hours on an on-plan day (the second number of the label). Purely
+    /// descriptive: the actual eating window closes at the user's start-time
+    /// anchor, so it's only this long when the fast ends exactly on goal (§4.1).
     var eatingHours: Int { 24 - goalHours }
 
     var displayName: String {

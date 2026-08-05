@@ -34,7 +34,8 @@ Fast
 Settings (single object)
   activeProtocolID: String
   startReminderEnabled: Bool
-  startReminderTime: DateComponents   // local wall-clock time
+  startReminderTime: DateComponents   // local wall-clock time; also the schedule
+                                      // anchor the eating window closes at (§4.1)
   goalNotificationEnabled: Bool
 ```
 
@@ -48,12 +49,14 @@ Derived (never stored): current streak, longest streak, longest fast, averages, 
 - Starting a fast defaults `start` to *now*, but the confirmation affordance allows adjusting the start time inline (e.g. "actually started at 21:30 yesterday") without leaving the flow.
 - Ending a fast likewise allows adjusting the end time inline.
 - Progress ring keeps counting past 100% (goal exceeded is a positive state, visually distinct — see §5).
-- The ring centre reads as a single block: a quiet heading naming the window ("16h fast" / "8h eating window"), the large rounded readout, then the end time. The heading also carries the count's *direction* — the fast's elapsed time only ever rises, while the eating window counts down to its close and up again afterwards ("8h window closed").
-- Below the readout, a quiet line gives the **clock time the current window ends** ("Ends 12:30") — the ring says how far along you are, this says when to act. It's the user's own 12/24h convention, and carries a day qualifier ("12:30 tomorrow", "Fri 12:30") whenever the end isn't today, which is the norm for an evening-started fast. Once the window is behind you the line is replaced by the status ("Goal reached 🎉" / "Ready when you are") rather than stacking on top of it, since a past end time is no longer useful.
+- The ring centre reads as a single block: a quiet heading naming the window ("16h fast" / "Eating window"), the large rounded readout, then the end time. The heading also carries the count's *direction* — the fast's elapsed time only ever rises, while the eating window counts down to its close and up again afterwards ("Window closed"). The eating window's heading carries no hour count, because its length isn't fixed (below).
+- Below the readout, a quiet line gives the **clock time the current window ends** ("Ends 12:30" while fasting, "Next fast at 20:00" between fasts) — the ring says how far along you are, this says when to act. It's the user's own 12/24h convention, and carries a day qualifier ("12:30 tomorrow", "Fri 12:30") whenever the end isn't today, which is the norm for an evening-started fast. Once the window is behind you the line is replaced by the status ("Goal reached 🎉" / "Ready when you are") rather than stacking on top of it, since a past end time is no longer useful.
 
 **Eating window.** Between fasts the same ring tracks the *eating window* — the stretch from the end of the last fast to when the next one is due — so the whole cycle is visible on one screen:
-- The window opens when a fast ends and lasts the current protocol's eating hours (24 − goal; e.g. 8h on 16:8). It is forward-looking — it says when the *next* fast is due — so changing protocol mid-window resizes it. Stored fasts are never touched (§6).
-- The readout counts *down* the time left; once the window is over it counts *up* the time since it closed, with neutral copy ("since your 8h window closed" / "Ready when you are"). Being late is not a failure — no red, no shaming (§5).
+- The window opens when a fast ends and closes at the user's **start-time anchor**: the daily wall-clock time they start fasting (`startReminderTime`, 20:00 by default). It is *not* `end + eating hours`.
+- **The anchor never moves, so the schedule never drifts.** Fasting past goal costs eating time — break at 14:00 against a 20:00 anchor and the window is 6h, not 8h — rather than pushing tomorrow's start later, where the drift would compound day after day. Breaking early buys the time back. The protocol's eating hours (24 − goal) describe the shape of an on-plan day; they never set this window's length, so changing protocol mid-window doesn't resize it. Stored fasts are never touched (§6).
+- **If a fast runs past its goal *and* past the anchor**, the user is already due: the screen goes straight to the past-due "Ready when you are" state rather than counting down almost a full day to the next anchor. Starting a fast a few minutes either side of the anchor is the on-plan case and never counts as a missed one.
+- The readout counts *down* the time left; once the window is over it counts *up* the time since it closed, with neutral copy ("Window closed" / "Ready when you are"). Being late is not a failure — no red, no shaming (§5).
 - The ring is lilac, distinct from the amber fasting ring. It does **not** bloom to mint (success-only) and has no overshoot arc — running past the eating window isn't an achievement.
 - **Before the first fast ever**, and once the last fast ended more than 24h ago (the daily cadence is broken), the screen shows the plain "Ready" state instead.
 - No notification when the window closes in v1.
@@ -76,11 +79,8 @@ No charts beyond the 7-day strip in v1. The data model loses nothing, so richer 
 
 ### 4.4 Notifications (local only)
 - **Goal reached**: scheduled at `start + goalHours` when a fast starts; cancelled if the fast is ended or edited before firing. Copy is celebratory, not clinical ("16 hours — goal reached 🎉 Keep going or break your fast whenever you're ready").
-- **Start reminder**: "Time to start your fast?", **on by default** at a user-chosen wall-clock time (20:00). Suppressed automatically if a fast is already running. It follows the eating window (§4.1) rather than the clock alone:
-  - The next reminder fires when the eating window closes, if that lands **before** the chosen time — the window knows when the next fast is actually due.
-  - If the window would push it **later** than the chosen time, the chosen time wins and the window reminder is dropped. The chosen time is a ceiling, and a day never gets two nudges.
-  - With no eating window (before the first fast, or once the last one is >24h old) it's simply the chosen daily time.
-  - Implemented as a rolling week of one-shots re-armed on launch, on foreground and after every write — a single repeating trigger can't move its next occurrence, and one lone one-shot would stop reminding anyone who never reopens the app.
+- **Start reminder**: "Time to start your fast?", **on by default**, fired at the start-time anchor (20:00 by default) — the same instant the eating window closes (§4.1). Suppressed automatically if a fast is already running. Because the anchor never moves, this is a single repeating calendar trigger on wall-clock components, so it keeps its local time across DST and keeps firing whether or not the app is ever reopened.
+  - The anchor is presented in Settings as a plan setting ("Start fast at"), not a notification preference, and stays visible when the reminder is switched off — it still governs the eating window.
 - No other notifications. No badges.
 - **Foreground behaviour is deliberate**: no `UNUserNotificationCenterDelegate` is installed, so iOS suppresses alerts that fire while the app is open. The app-open goal celebration is the mint ring bloom + success haptic (§5) — a banner on top of it would be redundant.
 - Permission is requested lazily (first fast start, or when a reminder is switched on), never on launch. Because `UNUserNotificationCenter.add` fails silently when permission is denied, Settings shows an explicit "Notifications are turned off" row with a link into iOS Settings whenever iOS won't present alerts — otherwise the toggles look functional while nothing can fire.

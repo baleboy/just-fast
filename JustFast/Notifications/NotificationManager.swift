@@ -25,7 +25,7 @@ final class NotificationManager {
     private let center = UNUserNotificationCenter.current()
     private let log = Logger(subsystem: "com.balenet.JustFast", category: "notifications")
 
-    private static func startReminderID(_ index: Int) -> String { "start-reminder-\(index)" }
+    private static let startReminderID = "start-reminder"
     private static func goalID(_ fastID: UUID) -> String { "goal-\(fastID.uuidString)" }
 
     // MARK: Authorization
@@ -96,29 +96,26 @@ final class NotificationManager {
 
     // MARK: Start reminder (§4.4)
 
-    /// Replace the pending start reminders with one-shots at `dates` (computed by
-    /// `FastingEngine.startReminderDates`). Pass an empty array to just clear them.
+    /// Arm the daily "time to start your fast?" nudge at the user's start-time
+    /// anchor — the same time the eating window closes (§4.1, §4.4).
     ///
-    /// Wall-clock components rather than elapsed intervals, so the daily ones land
-    /// at the chosen local time across a DST change.
-    func scheduleStartReminders(at dates: [Date]) {
-        cancelStartReminders()
+    /// One repeating trigger is enough because the anchor never moves. Wall-clock
+    /// components rather than elapsed intervals, so it keeps landing at the chosen
+    /// local time across a DST change.
+    func scheduleStartReminder(hour: Int, minute: Int) {
+        cancelStartReminder()
 
-        for (index, date) in dates.enumerated() {
-            let content = UNMutableNotificationContent()
-            content.title = "Time to start your fast?"
-            content.sound = .default
+        let content = UNMutableNotificationContent()
+        content.title = "Time to start your fast?"
+        content.sound = .default
 
-            let components = Calendar.current.dateComponents(
-                [.year, .month, .day, .hour, .minute, .second], from: date
-            )
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            add(UNNotificationRequest(identifier: Self.startReminderID(index), content: content, trigger: trigger))
-        }
+        let trigger = UNCalendarNotificationTrigger(
+            dateMatching: DateComponents(hour: hour, minute: minute), repeats: true
+        )
+        add(UNNotificationRequest(identifier: Self.startReminderID, content: content, trigger: trigger))
     }
 
-    func cancelStartReminders() {
-        let identifiers = (0..<FastingEngine.startReminderDaysAhead).map(Self.startReminderID)
-        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+    func cancelStartReminder() {
+        center.removePendingNotificationRequests(withIdentifiers: [Self.startReminderID])
     }
 }

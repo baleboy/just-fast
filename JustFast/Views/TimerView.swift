@@ -30,13 +30,20 @@ struct TimerView: View {
         settings?.activeProtocol ?? .p168
     }
 
+    /// The wall-clock time the user starts their fast — the anchor the eating
+    /// window closes at (§4.1).
+    private var startAnchor: DateComponents {
+        settings?.startReminderComponents ?? DateComponents(hour: 20, minute: 0)
+    }
+
     /// The eating window to show while idle (§4.1). Evaluated at body time; the
     /// live countdown inside `EatingWindowContent` drives its own clock.
     private var eatingWindow: EatingWindow? {
         FastingEngine.currentEatingWindow(
             fasts.records,
-            eatingHours: activeProtocol.eatingHours,
-            now: Date()
+            anchor: startAnchor,
+            now: Date(),
+            timeZone: .current
         )
     }
 
@@ -258,10 +265,10 @@ private struct EatingWindowContent: View {
                     VStack(spacing: 6) {
                         // The heading carries the count's direction: unlike the
                         // fast's always-rising elapsed time, this counts *down* to
-                        // the window's close and *up* again afterwards.
-                        Text(isOver
-                             ? "\(window.goalHours)h window closed"
-                             : "\(window.goalHours)h eating window")
+                        // the window's close and *up* again afterwards. No "8h"
+                        // prefix — the window is whatever the anchor leaves, not a
+                        // fixed length the user is owed.
+                        Text(isOver ? "Window closed" : "Eating window")
                             .font(.callout)
                             .multilineTextAlignment(.center)
                             .foregroundStyle(Theme.secondaryText)
@@ -274,7 +281,7 @@ private struct EatingWindowContent: View {
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(Theme.amber)
                         } else {
-                            Text("Ends \(TimeFormat.endLabel(window.endsAt, now: now))")
+                            Text("Next fast at \(TimeFormat.endLabel(window.end, now: now))")
                                 .font(.footnote)
                                 .foregroundStyle(Theme.secondaryText)
                         }

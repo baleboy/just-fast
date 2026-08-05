@@ -90,7 +90,7 @@ struct FastStore {
         try context.save()
 
         NotificationManager.shared.scheduleGoalNotification(for: fast.record, enabled: settings.goalNotificationEnabled)
-        NotificationManager.shared.cancelStartReminders() // suppressed while a fast runs (§4.4)
+        NotificationManager.shared.cancelStartReminder() // suppressed while a fast runs (§4.4)
         reloadWidgets()
 
         return FastActionResult(kind: .started, fast: fast.record)
@@ -118,8 +118,8 @@ struct FastStore {
         let newLongestStreak = FastingEngine.longestStreak(after, timeZone: .current)
 
         NotificationManager.shared.cancelGoalNotification(for: closed.id)
-        // Reconcile rather than reschedule directly: the fast just closed, so the
-        // eating window that reminder is based on has only now opened.
+        // Reconcile rather than reschedule directly: no fast is running now, so
+        // the start reminder that was suppressed needs re-arming.
         reconcileNotifications()
         reloadWidgets()
 
@@ -190,29 +190,15 @@ struct FastStore {
         let settings = settings()
         if let open = openFast() {
             NotificationManager.shared.scheduleGoalNotification(for: open.record, enabled: settings.goalNotificationEnabled)
-            NotificationManager.shared.cancelStartReminders() // suppressed while a fast runs (§4.4)
+            NotificationManager.shared.cancelStartReminder() // suppressed while a fast runs (§4.4)
+        } else if settings.startReminderEnabled {
+            NotificationManager.shared.scheduleStartReminder(
+                hour: settings.startReminderHour,
+                minute: settings.startReminderMinute
+            )
         } else {
-            NotificationManager.shared.scheduleStartReminders(at: startReminderDates(settings: settings))
+            NotificationManager.shared.cancelStartReminder()
         }
-    }
-
-    /// When the next start reminders are due: driven by the eating window when it
-    /// closes before the user's chosen time, otherwise the chosen time (§4.4).
-    private func startReminderDates(settings: AppSettings) -> [Date] {
-        guard settings.startReminderEnabled else { return [] }
-        let now = Date()
-        let windowEnd = FastingEngine.currentEatingWindow(
-            records(),
-            eatingHours: settings.activeProtocol.eatingHours,
-            now: now
-        )?.endsAt
-        return FastingEngine.startReminderDates(
-            hour: settings.startReminderHour,
-            minute: settings.startReminderMinute,
-            eatingWindowEnd: windowEnd,
-            now: now,
-            timeZone: .current
-        )
     }
 
     func reloadWidgets() {

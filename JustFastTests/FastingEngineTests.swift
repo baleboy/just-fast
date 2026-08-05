@@ -278,68 +278,103 @@ private func approxEqual(_ a: TimeInterval?, _ b: TimeInterval, tol: TimeInterva
 // MARK: - Eating window
 
 @Suite struct EatingWindowTests {
-    private let lastEnd = date(2026, 7, 28, 12) // a 16h fast ended at noon
+    // The user starts their fast at 20:00 every day. That anchor — not the length
+    // of the last fast — is what closes the eating window.
+    private let anchor = DateComponents(hour: 20, minute: 0)
+    private let lastEnd = date(2026, 7, 28, 12) // an on-plan 16h fast ended at noon
+
+    private func window(
+        _ fasts: [FastRecord],
+        now: Date,
+        anchor: DateComponents? = nil,
+        tz: TimeZone = utc
+    ) -> EatingWindow? {
+        FastingEngine.currentEatingWindow(
+            fasts, anchor: anchor ?? self.anchor, now: now, timeZone: tz
+        )
+    }
 
     private func fastsEndingAtNoon() -> [FastRecord] {
         [completedFast(endingAt: lastEnd)]
     }
 
-    @Test func windowOpensWhenTheLastFastEnded() {
-        let window = FastingEngine.currentEatingWindow(
-            fastsEndingAtNoon(), eatingHours: 8, now: date(2026, 7, 28, 14)
-        )
-        #expect(window?.start == lastEnd)
-        #expect(window?.endsAt == date(2026, 7, 28, 20))
+    @Test func windowOpensAtTheLastFastEndAndClosesAtTheAnchor() {
+        let result = window(fastsEndingAtNoon(), now: date(2026, 7, 28, 14))
+        #expect(result?.start == lastEnd)
+        #expect(result?.end == date(2026, 7, 28, 20))
+    }
+
+    // The case this whole model exists for: overrunning must cost eating time,
+    // not push the next start later.
+    @Test func overrunningTheFastShortensTheWindowRatherThanMovingTheAnchor() {
+        // Started 20:00 on a 16:8, meant to break at 12:00, actually broke at 14:00.
+        let fasts = [fast(date(2026, 7, 27, 20), date(2026, 7, 28, 14))]
+        let result = window(fasts, now: date(2026, 7, 28, 15))
+        #expect(result?.end == date(2026, 7, 28, 20)) // unmoved
+        #expect(approxEqual(result?.goalInterval, 6 * 3600)) // 8h plan, 6h actual
+    }
+
+    @Test func breakingEarlyLengthensTheWindowRatherThanMovingTheAnchor() {
+        let fasts = [fast(date(2026, 7, 27, 20), date(2026, 7, 28, 10))]
+        let result = window(fasts, now: date(2026, 7, 28, 11))
+        #expect(result?.end == date(2026, 7, 28, 20))
+        #expect(approxEqual(result?.goalInterval, 10 * 3600))
+    }
+
+    @Test func fastingStraightThroughTheAnchorLeavesNoWindow() {
+        // Blew past 20:00 by five minutes: already due, so the timer shows plain
+        // "Ready" rather than counting down ~24h to tomorrow's anchor.
+        let fasts = [fast(date(2026, 7, 27, 20), date(2026, 7, 28, 20, 5))]
+        #expect(window(fasts, now: date(2026, 7, 28, 20, 30)) == nil)
+    }
+
+    @Test func endingExactlyOnTheAnchorLeavesNoWindow() {
+        let fasts = [fast(date(2026, 7, 27, 20), date(2026, 7, 28, 20))]
+        #expect(window(fasts, now: date(2026, 7, 28, 20, 1)) == nil)
+    }
+
+    @Test func startingSlightlyBeforeTheAnchorIsStillOnPlan() {
+        // A fast begun at 19:58 contains the 20:00 occurrence, but that's the
+        // anchor it started *on* — it must not read as a missed one.
+        let fasts = [fast(date(2026, 7, 27, 19, 58), date(2026, 7, 28, 12))]
+        #expect(window(fasts, now: date(2026, 7, 28, 14))?.end == date(2026, 7, 28, 20))
     }
 
     @Test func progressAndRemainingMidWindow() {
-        let window = FastingEngine.currentEatingWindow(
-            fastsEndingAtNoon(), eatingHours: 8, now: date(2026, 7, 28, 14)
-        )!
+        let result = window(fastsEndingAtNoon(), now: date(2026, 7, 28, 14))!
         let now = date(2026, 7, 28, 14) // 2h into an 8h window
-        #expect(abs(window.progress(asOf: now) - 0.25) < 0.001)
-        #expect(approxEqual(window.remaining(asOf: now), 6 * 3600))
-        #expect(!window.isOver(asOf: now))
+        #expect(abs(result.progress(asOf: now) - 0.25) < 0.001)
+        #expect(approxEqual(result.remaining(asOf: now), 6 * 3600))
+        #expect(!result.isOver(asOf: now))
     }
 
     @Test func windowGoesOverAndRemainingTurnsNegative() {
-        let window = EatingWindow(start: lastEnd, goalHours: 8)
+        let result = EatingWindow(start: lastEnd, end: date(2026, 7, 28, 20))
         let now = date(2026, 7, 28, 21) // 1h past the window
-        #expect(window.isOver(asOf: now))
-        #expect(window.progress(asOf: now) > 1)
-        #expect(approxEqual(window.remaining(asOf: now), -3600))
+        #expect(result.isOver(asOf: now))
+        #expect(result.progress(asOf: now) > 1)
+        #expect(approxEqual(result.remaining(asOf: now), -3600))
     }
 
     @Test func noWindowBeforeTheFirstEverFast() {
-        #expect(FastingEngine.currentEatingWindow([], eatingHours: 8, now: lastEnd) == nil)
+        #expect(window([], now: lastEnd) == nil)
     }
 
     @Test func noWindowWhenOnlyFastIsStillOpen() {
-        let fasts = [fast(date(2026, 7, 28, 6), nil)]
-        let window = FastingEngine.currentEatingWindow(
-            fasts, eatingHours: 8, now: date(2026, 7, 28, 14)
-        )
-        #expect(window == nil)
+        #expect(window([fast(date(2026, 7, 28, 6), nil)], now: date(2026, 7, 28, 14)) == nil)
     }
 
     @Test func noWindowWhileAFastIsRunningAfterAnEarlierOne() {
         let fasts = fastsEndingAtNoon() + [fast(date(2026, 7, 28, 20), nil)]
-        let window = FastingEngine.currentEatingWindow(
-            fasts, eatingHours: 8, now: date(2026, 7, 28, 22)
-        )
-        #expect(window == nil)
+        #expect(window(fasts, now: date(2026, 7, 28, 22)) == nil)
     }
 
     @Test func windowGoesStaleAfterADayAndFallsBackToReady() {
         let fasts = fastsEndingAtNoon()
         // 23h59m later: still shown (badly overrun, but the cadence is intact).
-        #expect(FastingEngine.currentEatingWindow(
-            fasts, eatingHours: 8, now: date(2026, 7, 29, 11, 59)
-        ) != nil)
+        #expect(window(fasts, now: date(2026, 7, 29, 11, 59)) != nil)
         // Past 24h: no window — the timer shows plain "Ready".
-        #expect(FastingEngine.currentEatingWindow(
-            fasts, eatingHours: 8, now: date(2026, 7, 29, 13)
-        ) == nil)
+        #expect(window(fasts, now: date(2026, 7, 29, 13)) == nil)
     }
 
     @Test func windowAnchorsToTheMostRecentlyEndedFast() {
@@ -347,19 +382,17 @@ private func approxEqual(_ a: TimeInterval?, _ b: TimeInterval, tol: TimeInterva
             completedFast(endingAt: date(2026, 7, 27, 12)),
             completedFast(endingAt: lastEnd),
         ]
-        let window = FastingEngine.currentEatingWindow(
-            fasts, eatingHours: 8, now: date(2026, 7, 28, 13)
-        )
-        #expect(window?.start == lastEnd)
+        #expect(window(fasts, now: date(2026, 7, 28, 13))?.start == lastEnd)
     }
 
-    @Test func windowLengthFollowsTheCurrentProtocolNotTheEndedFast() {
-        // The ended fast was 16:8, but the user has since switched to OMAD 23:1.
-        let window = FastingEngine.currentEatingWindow(
-            fastsEndingAtNoon(), eatingHours: 1, now: date(2026, 7, 28, 12, 30)
-        )
-        #expect(window?.goalHours == 1)
-        #expect(window?.endsAt == date(2026, 7, 28, 13))
+    @Test func windowLengthIsIndependentOfTheProtocol() {
+        // Same break time, wildly different protocols: the close is the anchor's
+        // to set, so changing protocol never resizes the window.
+        let short = [fast(date(2026, 7, 28, 11), lastEnd, goal: 1)]
+        let long = [fast(date(2026, 7, 27, 13), lastEnd, goal: 23)]
+        let now = date(2026, 7, 28, 14)
+        #expect(window(short, now: now)?.end == date(2026, 7, 28, 20))
+        #expect(window(long, now: now)?.end == date(2026, 7, 28, 20))
     }
 
     @Test func futureDatedFastEndIsIgnored() {
@@ -369,10 +402,16 @@ private func approxEqual(_ a: TimeInterval?, _ b: TimeInterval, tol: TimeInterva
             completedFast(endingAt: lastEnd),
             completedFast(endingAt: date(2026, 7, 29, 23)),
         ]
-        let window = FastingEngine.currentEatingWindow(
-            fasts, eatingHours: 8, now: date(2026, 7, 28, 14)
-        )
-        #expect(window?.start == lastEnd)
+        #expect(window(fasts, now: date(2026, 7, 28, 14))?.start == lastEnd)
+    }
+
+    @Test func anchorHoldsItsWallClockTimeAcrossADSTChange() {
+        // NY clocks go back at 02:00 on 2026-11-01. A window opened at 23:00 the
+        // night before still closes at 20:00 — 22 absolute hours later, not 21.
+        let fasts = [fast(date(2026, 10, 31, 12, tz: ny), date(2026, 10, 31, 23, tz: ny))]
+        let result = window(fasts, now: date(2026, 11, 1, 10, tz: ny), tz: ny)
+        #expect(result?.end == date(2026, 11, 1, 20, tz: ny))
+        #expect(approxEqual(result?.goalInterval, 22 * 3600))
     }
 }
 
@@ -426,83 +465,6 @@ private func approxEqual(_ a: TimeInterval?, _ b: TimeInterval, tol: TimeInterva
             date(2026, 7, 29, 3), now: date(2026, 7, 28, 22), timeZone: ny
         )
         #expect(!label.contains("tomorrow"))
-    }
-}
-
-// MARK: - Start reminder scheduling
-
-@Suite struct StartReminderDatesTests {
-    // Reminder set for 20:00.
-    private func dates(
-        eatingWindowEnd: Date?,
-        now: Date,
-        daysAhead: Int = 7
-    ) -> [Date] {
-        FastingEngine.startReminderDates(
-            hour: 20, minute: 0,
-            eatingWindowEnd: eatingWindowEnd,
-            now: now,
-            timeZone: utc,
-            daysAhead: daysAhead
-        )
-    }
-
-    @Test func withNoEatingWindowItIsTheDailyTime() {
-        let result = dates(eatingWindowEnd: nil, now: date(2026, 7, 28, 9))
-        #expect(result.first == date(2026, 7, 28, 20))
-    }
-
-    @Test func windowClosingBeforeTheDailyTimeWins() {
-        // Window ends 14:00 — earlier than 20:00, so the nudge moves up.
-        let result = dates(eatingWindowEnd: date(2026, 7, 28, 14), now: date(2026, 7, 28, 9))
-        #expect(result.first == date(2026, 7, 28, 14))
-    }
-
-    @Test func theDailyTimeIsSkippedOnTheDayTheWindowCoveredIt() {
-        // Exactly the user's rule: one nudge per day, never two.
-        let result = dates(eatingWindowEnd: date(2026, 7, 28, 14), now: date(2026, 7, 28, 9))
-        #expect(!result.contains(date(2026, 7, 28, 20)))
-        #expect(result[1] == date(2026, 7, 29, 20))
-    }
-
-    @Test func windowClosingAfterTheDailyTimeLosesToIt() {
-        // Window ends 22:00, after the chosen 20:00 — the chosen time is sent.
-        let result = dates(eatingWindowEnd: date(2026, 7, 28, 22), now: date(2026, 7, 28, 9))
-        #expect(result.first == date(2026, 7, 28, 20))
-        #expect(!result.contains(date(2026, 7, 28, 22)))
-    }
-
-    @Test func windowAlreadyClosedIsIgnored() {
-        let result = dates(eatingWindowEnd: date(2026, 7, 28, 8), now: date(2026, 7, 28, 9))
-        #expect(result.first == date(2026, 7, 28, 20))
-    }
-
-    @Test func lateEveningWindowBeatsTomorrowsDailyTime() {
-        // 21:00 now, so today's 20:00 has passed; the next daily is tomorrow.
-        // A window closing at 23:00 tonight is sooner, so it wins.
-        let result = dates(eatingWindowEnd: date(2026, 7, 28, 23), now: date(2026, 7, 28, 21))
-        #expect(result.first == date(2026, 7, 28, 23))
-        #expect(result[1] == date(2026, 7, 29, 20))
-    }
-
-    @Test func aRollingWeekIsScheduledSoRemindersSurviveNotOpeningTheApp() {
-        let result = dates(eatingWindowEnd: nil, now: date(2026, 7, 28, 9))
-        #expect(result.count == 7)
-        #expect(result == (0..<7).map { date(2026, 7, 28 + $0, 20) })
-    }
-
-    @Test func alwaysAscendingAndInTheFuture() {
-        let now = date(2026, 7, 28, 9)
-        for windowEnd in [nil, date(2026, 7, 28, 14), date(2026, 7, 28, 22)] {
-            let result = dates(eatingWindowEnd: windowEnd, now: now)
-            #expect(result.count == 7)
-            #expect(result == result.sorted())
-            #expect(result.allSatisfy { $0 > now })
-        }
-    }
-
-    @Test func zeroDaysAheadSchedulesNothing() {
-        #expect(dates(eatingWindowEnd: nil, now: date(2026, 7, 28, 9), daysAhead: 0).isEmpty)
     }
 }
 

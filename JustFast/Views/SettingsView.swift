@@ -53,13 +53,20 @@ private struct SettingsForm: View {
 
     var body: some View {
         Form {
-            Section("Protocol") {
+            Section("Plan") {
                 Picker("Active protocol", selection: $settings.activeProtocolID) {
                     ForEach(FastingProtocol.allCases) { proto in
                         Text(proto.displayName).tag(proto.rawValue)
                     }
                 }
                 Text("Applies to fasts started from now on — never retroactively.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondaryText)
+
+                // Shown unconditionally: this is the schedule anchor, not a
+                // notification setting — turning reminders off must not hide it.
+                DatePicker("Start fast at", selection: reminderTime, displayedComponents: .hourAndMinute)
+                Text("Your eating window closes at this time, so fasting longer than planned doesn’t push tomorrow’s start later.")
                     .font(.caption)
                     .foregroundStyle(Theme.secondaryText)
             }
@@ -70,9 +77,9 @@ private struct SettingsForm: View {
                 }
                 Toggle("Goal reached alert", isOn: $settings.goalNotificationEnabled)
                 Toggle("Daily start reminder", isOn: $settings.startReminderEnabled)
-                if settings.startReminderEnabled {
-                    DatePicker("Reminder time", selection: reminderTime, displayedComponents: .hourAndMinute)
-                }
+                Text("Nudges you at your start time.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondaryText)
             }
 
             Section("Back Tap") {
@@ -173,4 +180,12 @@ private struct BackTapTip: View {
         }
         .padding(.vertical, 4)
     }
+}
+
+#Preview {
+    NavigationStack { SettingsView() }
+        .modelContainer(AppContainer.inMemory())
+        // RootView tints the whole TabView; without this the preview's controls
+        // render in the system accent rather than the app's amber (§5).
+        .tint(Theme.amber)
 }

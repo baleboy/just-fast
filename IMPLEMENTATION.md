@@ -12,7 +12,8 @@ engine has an exhaustive unit-test suite (30 tests, all green).
 - `Model/FastRecord.swift` — the Sendable value snapshot the engine operates on
 - `Engine/FastingEngine.swift` — streaks (current/longest), goal days, 7-day
   strip, 30-day average & goal-completion rate, one-shot `summary`, and the
-  between-fasts `EatingWindow` (`currentEatingWindow`, 24h staleness cutoff)
+  between-fasts `EatingWindow` (`currentEatingWindow` — closes at the daily
+  start-time anchor, 24h staleness cutoff, past-due guard)
 - `Engine/FastValidation.swift` — `end>start`, 7-day cap, overlap (touching
   endpoints allowed), edit-excludes-self
 - `JustFastTests/FastingEngineTests.swift` — midnight spans, DST, TZ shifts,
@@ -32,19 +33,22 @@ engine has an exhaustive unit-test suite (30 tests, all green).
   (`TimeFormat.endLabel`, day-qualified when not today), inline start/end time
   adjustment, record banner, >48h gentle prompt, success haptic (Reduce-Motion
   aware)
-- Between fasts the ring becomes the lilac **eating-window** countdown (time
-  left → time since it closed). Falls back to "Ready" before the first fast and
-  once the last one is >24h old
+- Between fasts the ring becomes the lilac **eating-window** countdown to the
+  daily start-time anchor (time left → time since it closed), so a long fast
+  shortens the window instead of moving tomorrow's start. Falls back to "Ready"
+  before the first fast, once the last one is >24h old, and when a fast ran past
+  both its goal and the anchor
 - Stats screen: streak tiles, current/longest fast, 7-day strip, 30-day
   averages, link into history
 - History (grouped by month, reverse-chron), edit/retro-entry/delete with
-  validation messages, Settings (protocol, reminders, Back Tap tip card)
+  validation messages, Settings (plan: protocol + "Start fast at" anchor;
+  reminders; Back Tap tip card)
 - `Design/Theme.swift` — the palette tokens (aubergine/cream, amber, mint)
 
 **Notifications (§4.4)** — `Notifications/NotificationManager.swift`: goal-reached
 (scheduled at start+goal, cancelled on end/edit) and the start reminder (on by
-default at 20:00, suppressed while fasting, fired at the earlier of the eating
-window's close and the chosen time — a rolling week of one-shots). Permission is requested
+default at 20:00, suppressed while fasting, fired at the start-time anchor — one
+repeating calendar trigger, since the anchor never moves). Permission is requested
 lazily (on first start / when a reminder is enabled), not on launch. Scheduling
 failures are logged; Settings surfaces an explicit "Notifications are turned
 off" row when iOS won't present alerts; everything is re-armed on launch and on
