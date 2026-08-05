@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**Just Fast** — a free, minimal iOS intermittent-fasting tracker. SwiftUI + SwiftData, iOS 26.4 minimum, Xcode 26.x. Bundle id `com.balenet.JustFast`.
+**Fastino** — a free, minimal iOS intermittent-fasting tracker. SwiftUI + SwiftData, iOS 26.4 minimum, Xcode 26.x. Bundle id `com.balenet.fastino`.
 
 Two documents drive the work and are the source of truth; keep them current:
 - `specification.md` — product & technical spec. Source files reference its sections (`§2`, `§4.6`, …) in their header comments; keep those references accurate when editing.
@@ -14,23 +14,23 @@ Two documents drive the work and are the source of truth; keep them current:
 
 ```bash
 # Build
-xcodebuild build -scheme JustFast -destination 'platform=iOS Simulator,name=iPhone 17'
+xcodebuild build -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone 17'
 
 # Unit tests (swift-testing)
-xcodebuild test -scheme JustFast -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:JustFastTests
+xcodebuild test -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:FastinoTests
 
 # A single suite or test (swift-testing names, not XCTest)
-xcodebuild test -scheme JustFast -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -only-testing:JustFastTests/CurrentStreakTests
-xcodebuild test -scheme JustFast -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -only-testing:JustFastTests/CurrentStreakTests/threeConsecutiveDaysEndingToday
+xcodebuild test -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -only-testing:FastinoTests/CurrentStreakTests
+xcodebuild test -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -only-testing:FastinoTests/CurrentStreakTests/threeConsecutiveDaysEndingToday
 ```
 
 Launch with `-seedDemo` (DEBUG only) to populate a streak plus an active fast for screenshots; `-seedEating` seeds the between-fasts state instead.
 
 Only the iOS 26.5 simulator runtime satisfies the 26.4 deployment target — installing on the iOS 26.1 devices fails.
 
-The Xcode project uses **file-system-synchronized groups** — new `.swift` files under `JustFast/` are picked up automatically; no `project.pbxproj` edits needed.
+The Xcode project uses **file-system-synchronized groups** — new `.swift` files under `Fastino/` are picked up automatically; no `project.pbxproj` edits needed.
 
 ## Keep the README screenshot current
 
@@ -40,7 +40,7 @@ The Xcode project uses **file-system-synchronized groups** — new `.swift` file
 DEV=$(xcrun simctl list devices available | grep -A20 "iOS 26.5" | grep "iPhone 17 (" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
 xcrun simctl boot "$DEV"; xcrun simctl ui "$DEV" appearance dark
 # build, install, then:
-xcrun simctl launch "$DEV" com.balenet.JustFast -seedDemo   # 10h into a 16h fast
+xcrun simctl launch "$DEV" com.balenet.fastino -seedDemo   # 10h into a 16h fast
 xcrun simctl io "$DEV" screenshot /tmp/hero.png
 sips -Z 620 /tmp/hero.png --out docs/screenshot.png          # keeps it ~45KB
 ```
@@ -56,11 +56,11 @@ Three layers, deliberately separated so the logic is testable and reusable by th
 - `Engine/FastingEngine.swift` — streaks, goal days, 7-day strip, 30-day averages. Every function is a pure function of `[FastRecord]` + `now` + `TimeZone`.
 - `Engine/FastValidation.swift` — `end > start`, 7-day cap, overlap (touching endpoints allowed, open fast extends to `.distantFuture`), `excludingID` for edits.
 
-Keep this layer pure. New stat/validation logic goes here and gets unit tests in `JustFastTests/FastingEngineTests.swift` (swift-testing `@Suite`/`@Test`, ~35 tests).
+Keep this layer pure. New stat/validation logic goes here and gets unit tests in `FastinoTests/FastingEngineTests.swift` (swift-testing `@Suite`/`@Test`, ~35 tests).
 
 **2. Persistence + the single write path**
 - `Model/Fast.swift`, `Model/AppSettings.swift` — SwiftData `@Model`s. **Every attribute must have a default and there are no unique constraints** — this keeps the schema CloudKit-compatible. Preserve that when adding fields.
-- `Store/AppContainer.swift` — the shared `ModelContainer` (plus `inMemory()` for previews/tests). `cloudKitDatabase` is `.none`; flipping it to `.automatic` + setting a real container id in `JustFast.entitlements` enables sync.
+- `Store/AppContainer.swift` — the shared `ModelContainer` (plus `inMemory()` for previews/tests). `cloudKitDatabase` is `.none`; flipping it to `.automatic` + setting a real container id in `Fastino.entitlements` enables sync.
 - `Store/FastStore.swift` — **the only place fasts are mutated.** UI, App Intents, and the future widget/watch targets all go through `startFast`/`endFast`/`toggle`/`addManual`/`update`/`delete`. Each method validates, saves, reconciles notifications, and calls `WidgetCenter.reloadAllTimelines()`. Never write to a `Fast` from a view or an intent directly — add a method here instead.
   - `endFast` returns a `FastActionResult` carrying the celebration facts (goal met, new longest fast/streak, current streak) so the UI can decide what to animate.
 
@@ -70,7 +70,7 @@ Keep this layer pure. New stat/validation logic goes here and gets unit tests in
 - `Notifications/NotificationManager.swift` — goal-reached notification (scheduled at start+goal, cancelled on end/edit) and the start reminder (on by default, suppressed while fasting). Permission is requested lazily, never on launch.
   - The start reminder fires at the user's **start-time anchor** (`startReminderHour`/`Minute`, 20:00 by default) — the same instant the eating window closes. Since the anchor never moves it's a single repeating calendar trigger; `FastStore.reconcileNotifications` only has to arm/cancel it (it's suppressed while a fast runs).
   - **No `UNUserNotificationCenterDelegate`, on purpose** — that's what makes iOS suppress alerts while the app is open, leaving the ring bloom + haptic as the app-open cue (§5). Adding one silently changes product behavior.
-  - `add()` fails silently when permission is denied, so failures are logged and Settings shows a "Notifications are turned off" row; `JustFastApp` re-arms everything on launch and on foreground.
+  - `add()` fails silently when permission is denied, so failures are logged and Settings shows a "Notifications are turned off" row; `FastinoApp` re-arms everything on launch and on foreground.
 
 ## Domain rules that are easy to get wrong
 

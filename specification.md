@@ -1,4 +1,4 @@
-# Just Fast — Minimal Fasting Tracker for iOS
+# Fastino — Minimal Fasting Tracker for iOS
 *Product & technical specification, v0.1 — 2026-07-29*
 
 ## 1. Purpose
@@ -94,7 +94,7 @@ No Live Activities — by decision: the system ends a Live Activity after 8 hour
 ### 4.6 Shortcuts, Siri & Back Tap
 - App Intents shipped in v1: `StartFastIntent`, `EndFastIntent`, and a **`ToggleFastIntent`** that starts a fast if none is open and ends the open one otherwise.
 - `ToggleFastIntent` **requests confirmation** before acting, with state-aware copy: "Start fasting now?" / "End fast? 15h 42m elapsed — goal reached ✓". Confirmation is what makes it safe to bind to accidental-prone triggers.
-- **Start and End are exposed as App Shortcuts** (zero-setup, Siri-invocable). App Intents requires every phrase to contain the app name, so `Info.plist` declares `INAlternativeAppNames` aliases — **"Fasting"**, "Fast", "Just Fasting" — which turn `"Start \(.applicationName)"` into the natural "Hey Siri, start fasting" / "stop fasting" alongside "start Just Fast".
+- **Start and End are exposed as App Shortcuts** (zero-setup, Siri-invocable). App Intents requires every phrase to contain the app name, so `Info.plist` declares `INAlternativeAppNames` aliases — **"Fasting"**, "Fast" — which turn `"Start \(.applicationName)"` into the natural "Hey Siri, start fasting" / "stop fasting" alongside "start Fastino".
 - **Toggle is not an App Shortcut.** Siri offers only the unambiguous start/end pair; `ToggleFastIntent` remains available as an action in the Shortcuts app, which is all Back Tap needs.
 - **Back Tap flow** (the headline use case): the user wraps the Toggle Fast action in a Shortcuts-app shortcut, then binds it to double-tap in Settings → Accessibility → Touch → Back Tap. Because Toggle is no longer an App Shortcut it doesn't show up in the Back Tap picker on its own, so the "Set up Back Tap" tip card in Settings spells out that first step.
 - Intents write through the same shared store + validation as the app; widgets reload after every intent run.

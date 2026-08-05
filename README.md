@@ -1,11 +1,11 @@
-# Just Fast
+# Fastino
 
 A minimal iOS intermittent-fasting tracker. Logging a fast should be nearly invisible — one tap, or a double-tap on the back of the phone — while the statistics stay comprehensive and out of the way until you ask for them.
 
 No accounts, no backend, no analytics, no subscriptions. Your data stays on your device.
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="The Just Fast timer part-way through a 16-hour fast, showing the amber progress ring, elapsed time and the clock time the fast ends" width="285">
+  <img src="docs/screenshot.png" alt="The Fastino timer part-way through a 16-hour fast, showing the amber progress ring, elapsed time and the clock time the fast ends" width="285">
 </p>
 
 ## Features
@@ -37,17 +37,17 @@ Streaks are strict by design: no freezes, no rest days. A goal day is a calendar
 
 ```bash
 # Run in the simulator
-xcodebuild build -scheme JustFast -destination 'platform=iOS Simulator,name=iPhone 17'
+xcodebuild build -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone 17'
 
 # Tests
-xcodebuild test -scheme JustFast -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:JustFastTests
+xcodebuild test -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:FastinoTests
 
 # A single suite
-xcodebuild test -scheme JustFast -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -only-testing:JustFastTests/CurrentStreakTests
+xcodebuild test -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -only-testing:FastinoTests/CurrentStreakTests
 ```
 
-Or just open `JustFast.xcodeproj` and hit Run.
+Or just open `Fastino.xcodeproj` and hit Run.
 
 Two debug-only launch arguments seed sample data for screenshots: `-seedDemo` (a streak plus an active fast) and `-seedEating` (the between-fasts state).
 
@@ -69,7 +69,7 @@ The engine and intents are structured for reuse by these, but each needs an addi
 
 - Lock Screen and Home Screen widgets
 - watchOS app and complications
-- CloudKit sync — the schema is already compatible; enabling it means setting a real container identifier in `JustFast.entitlements` and flipping `cloudKitDatabase` to `.automatic` in `Store/AppContainer.swift`
+- CloudKit sync — the schema is already compatible; enabling it means setting a real container identifier in `Fastino.entitlements` and flipping `cloudKitDatabase` to `.automatic` in `Store/AppContainer.swift`
 
 ## Documentation
 

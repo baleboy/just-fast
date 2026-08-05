@@ -1,4 +1,4 @@
-# Just Fast — implementation notes
+# Fastino — implementation notes
 
 Status of the v1 build against `specification.md`. iOS 26 / Xcode 26.4, SwiftUI + SwiftData.
 
@@ -16,7 +16,7 @@ engine has an exhaustive unit-test suite (30 tests, all green).
   start-time anchor, 24h staleness cutoff, past-due guard)
 - `Engine/FastValidation.swift` — `end>start`, 7-day cap, overlap (touching
   endpoints allowed), edit-excludes-self
-- `JustFastTests/FastingEngineTests.swift` — midnight spans, DST, TZ shifts,
+- `FastinoTests/FastingEngineTests.swift` — midnight spans, DST, TZ shifts,
   edits, overlaps, rolling windows
 
 **Persistence (§3)**
@@ -79,8 +79,8 @@ for reuse by them:
 2. **watchOS app + complications (§4.7)** — mirror of the main screen; add a
    watchOS App target sharing the same store.
 3. **CloudKit live sync (§3)** — the schema is already CloudKit-ready. To enable:
-   set a real container id in `JustFast.entitlements`
-   (`iCloud.com.balenet.JustFast`) and flip `cloudKitDatabase: .none` →
+   set a real container id in `Fastino.entitlements`
+   (`iCloud.com.balenet.fastino`) and flip `cloudKitDatabase: .none` →
    `.automatic` in `Store/AppContainer.swift`. Left local-only so the app runs
    without an iCloud container / provisioning.
 
@@ -89,8 +89,8 @@ package (as §7 envisions) so all four targets link one copy.
 
 ## Running
 
-- App: `xcodebuild build -scheme JustFast -destination 'platform=iOS Simulator,name=iPhone 17'`
-- Tests: `xcodebuild test -scheme JustFast -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:JustFastTests`
+- App: `xcodebuild build -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone 17'`
+- Tests: `xcodebuild test -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:FastinoTests`
 - Demo data: launch with `-seedDemo 1` (DEBUG only) to populate a streak + an
   active fast for screenshots. `-seedEating` seeds the same streak but with the
   last fast closed 2h ago, so the timer shows the eating window instead.

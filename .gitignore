@@ -5,7 +5,7 @@
 .claude/settings.local.json
 
 # Xcode — per-user state, already present in this project under
-# JustFast.xcodeproj/**/xcuserdata/ and not worth committing.
+# Fastino.xcodeproj/**/xcuserdata/ and not worth committing.
 xcuserdata/
 *.xcuserstate
 *.xcscmblueprint
