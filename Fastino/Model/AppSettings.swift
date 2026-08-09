@@ -17,6 +17,8 @@ final class AppSettings {
     var startReminderHour: Int = 20
     var startReminderMinute: Int = 0
     var goalNotificationEnabled: Bool = true
+    /// "Fat burn" / "Ketosis" nudges as the fast crosses `MetabolicZone` boundaries.
+    var milestoneNotificationsEnabled: Bool = true
     var appearanceID: String = Appearance.system.rawValue
 
     init(
@@ -25,6 +27,7 @@ final class AppSettings {
         startReminderHour: Int = 20,
         startReminderMinute: Int = 0,
         goalNotificationEnabled: Bool = true,
+        milestoneNotificationsEnabled: Bool = true,
         appearanceID: String = Appearance.system.rawValue
     ) {
         self.activeProtocolID = activeProtocolID
@@ -32,6 +35,7 @@ final class AppSettings {
         self.startReminderHour = startReminderHour
         self.startReminderMinute = startReminderMinute
         self.goalNotificationEnabled = goalNotificationEnabled
+        self.milestoneNotificationsEnabled = milestoneNotificationsEnabled
         self.appearanceID = appearanceID
     }
 

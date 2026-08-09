@@ -90,6 +90,7 @@ struct FastStore {
         try context.save()
 
         NotificationManager.shared.scheduleGoalNotification(for: fast.record, enabled: settings.goalNotificationEnabled)
+        NotificationManager.shared.scheduleMilestoneNotifications(for: fast.record, enabled: settings.milestoneNotificationsEnabled)
         NotificationManager.shared.cancelStartReminder() // suppressed while a fast runs (§4.4)
         reloadWidgets()
 
@@ -118,6 +119,7 @@ struct FastStore {
         let newLongestStreak = FastingEngine.longestStreak(after, timeZone: .current)
 
         NotificationManager.shared.cancelGoalNotification(for: closed.id)
+        NotificationManager.shared.cancelMilestoneNotifications(for: closed.id)
         // Reconcile rather than reschedule directly: no fast is running now, so
         // the start reminder that was suppressed needs re-arming.
         reconcileNotifications()
@@ -178,6 +180,7 @@ struct FastStore {
         context.delete(fast)
         try? context.save()
         NotificationManager.shared.cancelGoalNotification(for: id)
+        NotificationManager.shared.cancelMilestoneNotifications(for: id)
         reconcileNotifications()
         reloadWidgets()
     }
@@ -190,6 +193,7 @@ struct FastStore {
         let settings = settings()
         if let open = openFast() {
             NotificationManager.shared.scheduleGoalNotification(for: open.record, enabled: settings.goalNotificationEnabled)
+            NotificationManager.shared.scheduleMilestoneNotifications(for: open.record, enabled: settings.milestoneNotificationsEnabled)
             NotificationManager.shared.cancelStartReminder() // suppressed while a fast runs (§4.4)
         } else if settings.startReminderEnabled {
             NotificationManager.shared.scheduleStartReminder(

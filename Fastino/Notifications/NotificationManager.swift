@@ -27,6 +27,9 @@ final class NotificationManager {
 
     private static let startReminderID = "start-reminder"
     private static func goalID(_ fastID: UUID) -> String { "goal-\(fastID.uuidString)" }
+    private static func milestoneID(_ fastID: UUID, _ zone: MetabolicZone) -> String {
+        "milestone-\(zone.rawValue)-\(fastID.uuidString)"
+    }
 
     // MARK: Authorization
 
@@ -92,6 +95,43 @@ final class NotificationManager {
 
     func cancelGoalNotification(for fastID: UUID) {
         center.removePendingNotificationRequests(withIdentifiers: [Self.goalID(fastID)])
+    }
+
+    // MARK: Metabolic milestones (§4.4)
+
+    /// Nudges as the fast crosses into fat burn and ketosis — the same boundaries
+    /// the ring changes colour at, so the notification and the screen agree.
+    ///
+    /// A milestone that lands at or after the goal is skipped: on a 14:10 plan the
+    /// ketosis boundary *is* the goal, and two alerts for one moment is noise.
+    func scheduleMilestoneNotifications(for fast: FastRecord, enabled: Bool) {
+        cancelMilestoneNotifications(for: fast.id)
+        guard enabled, fast.isOpen else { return }
+
+        for zone in MetabolicZone.allCases where zone.startHours > 0 {
+            let fireDate = fast.start.addingTimeInterval(zone.startHours * 3600)
+            guard fireDate < fast.goalReachedAt else { continue }
+            let interval = fireDate.timeIntervalSinceNow
+            guard interval > 0 else { continue }
+
+            let content = UNMutableNotificationContent()
+            content.title = "\(zone.name) zone"
+            content.body = zone.milestoneBody
+            content.sound = .default
+
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+            add(UNNotificationRequest(
+                identifier: Self.milestoneID(fast.id, zone),
+                content: content,
+                trigger: trigger
+            ))
+        }
+    }
+
+    func cancelMilestoneNotifications(for fastID: UUID) {
+        center.removePendingNotificationRequests(
+            withIdentifiers: MetabolicZone.allCases.map { Self.milestoneID(fastID, $0) }
+        )
     }
 
     // MARK: Start reminder (§4.4)

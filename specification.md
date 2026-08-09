@@ -37,6 +37,7 @@ Settings (single object)
   startReminderTime: DateComponents   // local wall-clock time; also the schedule
                                       // anchor the eating window closes at (§4.1)
   goalNotificationEnabled: Bool
+  milestoneNotificationsEnabled: Bool        // fat-burn / ketosis nudges (§4.4)
   appearance: enum { system, light, dark }   // UI mode override (§5)
 ```
 
@@ -49,8 +50,10 @@ Derived (never stored): current streak, longest streak, longest fast, averages, 
 - Main screen is dominated by a single state element: a progress ring with elapsed time, goal time, and one primary button — **Start fast** / **End fast**.
 - Starting a fast defaults `start` to *now*, but the confirmation affordance allows adjusting the start time inline (e.g. "actually started at 21:30 yesterday") without leaving the flow.
 - Ending a fast likewise allows adjusting the end time inline.
-- Progress ring keeps counting past 100% (goal exceeded is a positive state, visually distinct — see §5).
-- The ring centre reads as a single block: a quiet heading naming the window ("16h fast" / "Eating window"), the large rounded readout, then the end time. The heading also carries the count's *direction* — the fast's elapsed time only ever rises, while the eating window counts down to its close and up again afterwards ("Window closed"). The eating window's heading carries no hour count, because its length isn't fixed (below).
+- **The ring encodes the metabolic zones as colour bands** (§5): gold 0–12h "Burning", orange 12–14h "Fat burn", pink 14h+ "Ketosis". Inside a band the colour ramps; at a boundary it jumps. The elapsed part of the ring is at full opacity and the part still ahead is the same colours dimmed — the opacity edge *is* the progress indicator, so there's no dot or cap. Zone boundaries are **absolute hours into the fast, not fractions of the goal**: fat burn opens 12h in whether the plan is 16:8 or 20:4. A goal that stops before a boundary simply never reaches that band (14:10 can't reach ketosis), and the corresponding zone card is shown as unreachable.
+- Under the ring, **three zone cards** double as its legend and its progress readout: passed zones are ticked, the current one is highlighted, the rest are quiet.
+- Progress past the goal keeps the ring fully lit rather than wrapping a second time (goal exceeded is a positive state — see §5).
+- The ring centre reads as a single block: a quiet heading naming the window ("16H FAST" / "EATING WINDOW"), the large readout, the end time, then a chip naming the current zone. The heading also carries the count's *direction* — the fast's elapsed time only ever rises, while the eating window counts down to its close and up again afterwards ("Window closed"). The eating window's heading carries no hour count, because its length isn't fixed (below).
 - Below the readout, a quiet line gives the **clock time the current window ends** ("Ends 12:30" while fasting, "Next fast at 20:00" between fasts) — the ring says how far along you are, this says when to act. It's the user's own 12/24h convention, and carries a day qualifier ("12:30 tomorrow", "Fri 12:30") whenever the end isn't today, which is the norm for an evening-started fast. Once the window is behind you the line is replaced by the status ("Goal reached 🎉" / "Ready when you are") rather than stacking on top of it, since a past end time is no longer useful.
 
 **Eating window.** Between fasts the same ring tracks the *eating window* — the stretch from the end of the last fast to when the next one is due — so the whole cycle is visible on one screen:
@@ -58,7 +61,7 @@ Derived (never stored): current streak, longest streak, longest fast, averages, 
 - **The anchor never moves, so the schedule never drifts.** Fasting past goal costs eating time — break at 14:00 against a 20:00 anchor and the window is 6h, not 8h — rather than pushing tomorrow's start later, where the drift would compound day after day. Breaking early buys the time back. The protocol's eating hours (24 − goal) describe the shape of an on-plan day; they never set this window's length, so changing protocol mid-window doesn't resize it. Stored fasts are never touched (§6).
 - **If a fast runs past its goal *and* past the anchor**, the user is already due: the screen goes straight to the past-due "Ready when you are" state rather than counting down almost a full day to the next anchor. Starting a fast a few minutes either side of the anchor is the on-plan case and never counts as a missed one.
 - The readout counts *down* the time left; once the window is over it counts *up* the time since it closed, with neutral copy ("Window closed" / "Ready when you are"). Being late is not a failure — no red, no shaming (§5).
-- The ring is lilac, distinct from the amber fasting ring. It does **not** bloom to mint (success-only) and has no overshoot arc — running past the eating window isn't an achievement.
+- The ring goes **cold**: no zone bands, a single quiet arc over a neutral track. The fire only burns during a fast, and running past your eating window isn't an achievement.
 - **Before the first fast ever**, and once the last fast ended more than 24h ago (the daily cadence is broken), the screen shows the plain "Ready" state instead.
 - No notification when the window closes in v1.
 
@@ -69,12 +72,13 @@ Derived (never stored): current streak, longest streak, longest fast, averages, 
 - Every edit triggers recomputation of streak and stats.
 
 ### 4.3 Statistics (essentials only)
-One dedicated Stats screen, its own tab (§4.1):
-- **Current streak** and **longest streak** (days)
-- **Current fast** (live) and **longest fast ever** (duration)
-- Last-7-days strip: one dot/bar per day, filled when it was a goal day
-- Average fast duration and goal-completion rate over the last 30 days
+One dedicated Stats screen, its own tab (§4.1), laid out as a 2×2 bento plus the week strip:
+- **Current fast** (live, highlighted while one is running) and **longest fast ever**
+- **Streak**: current, with the best alongside it
+- **Goal rate** over the last 30 days, with the average duration as its caption
+- **Last-7-days strip**: one bar per day, height proportional to that day's longest fast against the goal. A completed goal day is a solid ember bar; a day with nothing logged is a stub; **today, still fasting, is the same bar at half strength with a dashed outline** and becomes solid when the goal is met.
 - **History list**: reverse-chronological fasts with duration, goal met/missed badge; tap to edit. Infinite scroll, grouped by month.
+- **Export data** (Settings → General): every fast as a CSV — start, end, goal hours, duration, goal met — shared through the system share sheet.
 
 No charts beyond the 7-day strip in v1. The data model loses nothing, so richer charts can be added later without migration.
 
@@ -82,8 +86,9 @@ No charts beyond the 7-day strip in v1. The data model loses nothing, so richer 
 - **Goal reached**: scheduled at `start + goalHours` when a fast starts; cancelled if the fast is ended or edited before firing. Copy is celebratory, not clinical ("16 hours — goal reached 🎉 Keep going or break your fast whenever you're ready").
 - **Start reminder**: "Time to start your fast?", **on by default**, fired at the start-time anchor (20:00 by default) — the same instant the eating window closes (§4.1). Suppressed automatically if a fast is already running. Because the anchor never moves, this is a single repeating calendar trigger on wall-clock components, so it keeps its local time across DST and keeps firing whether or not the app is ever reopened.
   - The anchor is presented in Settings as a plan setting ("Start fast at"), not a notification preference, and stays visible when the reminder is switched off — it still governs the eating window.
+- **Milestones**: "Fat burn zone" at 12h and "Ketosis zone" at 14h — the same boundaries the ring changes colour at (§4.1), so the notification and the screen always agree. On by default, one switch for the pair. A milestone landing at or after the goal is skipped, so a 14:10 fast doesn't fire "ketosis" and "goal reached" for the same instant.
 - No other notifications. No badges.
-- **Foreground behaviour is deliberate**: no `UNUserNotificationCenterDelegate` is installed, so iOS suppresses alerts that fire while the app is open. The app-open goal celebration is the mint ring bloom + success haptic (§5) — a banner on top of it would be redundant.
+- **Foreground behaviour is deliberate**: no `UNUserNotificationCenterDelegate` is installed, so iOS suppresses alerts that fire while the app is open. The app-open goal celebration is the in-ring “Goal reached” line + success haptic (§5) — a banner on top of it would be redundant.
 - Permission is requested lazily (first fast start, or when a reminder is switched on), never on launch. Because `UNUserNotificationCenter.add` fails silently when permission is denied, Settings shows an explicit "Notifications are turned off" row with a link into iOS Settings whenever iOS won't present alerts — otherwise the toggles look functional while nothing can fire.
 - Pending notifications are re-armed on launch and on every foreground, so a schedule lost to a denied permission recovers as soon as permission is granted.
 
@@ -107,14 +112,16 @@ No Live Activities — by decision: the system ends a Live Activity after 8 hour
 
 ## 5. Design direction
 
-**Distinctive, calm, warm.** No default system blue, no clinical white dashboard.
+**"Ember" — distinctive, calm, warm.** The fast is a fire burning through metabolic zones. No default system blue, no clinical white dashboard.
 
-- **Palette**: deep aubergine background (#2B1B33) with warm amber/apricot accents (#FFB25E) for the active fast ring; mint (#7FE0C3) reserved exclusively for success states (goal reached, streak up). Light mode variant: cream paper (#FAF3E8) with the same accents. Colors are tokens — final values tuned during design.
+- **Palette**: plum-to-black radial background in dark (#2A1A3E → #181022 → #120B1A), warm paper in light (#FDF3E3 → #F3ECE2). The heat scale — gold #FFD066 → orange #FF8A3D → pink #FF5470 — carries the zone bands on the ring, the week bars, the primary button, and the gradient-filled "current fast" numeral. Green (#7FE8C3 dark / #1F8A63 light) is reserved exclusively for success (goal rate, goal met). Colours live in `Design/Theme.swift` as tokens; nothing hard-codes a hex.
+- **Surfaces**: translucent cards with a hairline border in dark, white cards with a soft shadow in light; 20pt radius (16–18 for small cards), pills at 99. A selected or active card is lit from within — accent fill, accent border, and a glow shadow.
+- **Chrome**: the system tab bar is replaced by a floating pill (Timer / Stats / Settings) with the active item in an accent chip. The three main screens carry no navigation bar — a wide-tracked uppercase title stands in.
 - **Appearance setting**: the app follows the device's light/dark setting by default, and Settings offers an explicit Light/Dark override for users who keep the system on Automatic but want the app pinned. The override is applied above the tab bar, so it covers every screen, not just the timer.
-- **Typography**: rounded numerals for the timer (SF Rounded), generous size; everything else quiet.
+- **Typography**: **Space Grotesk** (bundled, OFL, weights 400/600/700). The live timer is 44pt/700 with tabular numerals; screen titles 16/700 with wide tracking, uppercase; card labels 11/600 uppercase; body rows 15/600.
 - **Celebration cues** — small, fast, never blocking:
-  - Goal reached while app/watch is open: ring blooms into mint with a soft particle shimmer + success haptic (`.success` on iPhone, `.notification(.success)` on watch).
-  - Streak increment: streak number does a single tick-up roll animation with a spring, tinted mint for ~1s.
+  - Goal reached while app/watch is open: success haptic (`.success` on iPhone, `.notification(.success)` on watch) and the "Goal reached 🎉" line in the ring centre.
+  - Streak increment: the streak number rolls up once with a spring, tinted the success green for ~1s.
   - New longest fast / longest streak: one-line inline banner ("New record — 19h 12m"), no modal.
   - All cues are ≤1.5s, no sounds by default, and respect Reduce Motion (fall back to a color fade).
 - **Tone of copy**: encouraging, dry, never moralizing. Missing a goal is neutral ("14h 20m — logged"), never shaming.

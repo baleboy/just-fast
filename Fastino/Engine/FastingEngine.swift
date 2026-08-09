@@ -182,6 +182,50 @@ nonisolated enum FastingEngine {
         }
     }
 
+    /// For each of the last `count` calendar days (oldest first, ending today),
+    /// the longest fast that ended on it — the data behind the Stats bars.
+    ///
+    /// Today also counts the *open* fast's live elapsed time, which is what makes
+    /// the last bar grow through the day; `isInProgress` marks it so the UI can
+    /// draw it as still burning rather than as a finished day.
+    static func lastDays(
+        _ fasts: [FastRecord],
+        now: Date,
+        timeZone: TimeZone,
+        count: Int = 7
+    ) -> [DayBar] {
+        let cal = calendar(for: timeZone)
+        let goalDays = goalDayNumbers(fasts, timeZone: timeZone)
+        let today = dayNumber(of: now, timeZone: timeZone)
+
+        var longestByDay: [Int: TimeInterval] = [:]
+        for fast in fasts {
+            guard let end = fast.end, let duration = fast.finalDuration else { continue }
+            let day = dayNumber(of: end, timeZone: timeZone)
+            longestByDay[day] = max(longestByDay[day] ?? 0, duration)
+        }
+        let open = openFast(fasts)
+
+        return (0..<count).reversed().map { offset in
+            let day = today - offset
+            let date = cal.startOfDay(
+                for: cal.date(byAdding: .day, value: -offset, to: now) ?? now
+            )
+            var duration = longestByDay[day] ?? 0
+            var inProgress = false
+            if offset == 0, let open {
+                duration = max(duration, open.duration(asOf: now))
+                inProgress = true
+            }
+            return DayBar(
+                date: date,
+                duration: duration,
+                goalMet: goalDays.contains(day),
+                isInProgress: inProgress
+            )
+        }
+    }
+
     /// Fasts that *ended* within the last `days` days (default 30), closed only.
     static func recentlyEndedFasts(
         _ fasts: [FastRecord],
@@ -230,6 +274,7 @@ nonisolated enum FastingEngine {
             currentFastDuration: openFast(fasts)?.duration(asOf: now),
             longestFast: longestFast(fasts, now: now),
             last7Days: lastDaysGoalMet(fasts, now: now, timeZone: timeZone, count: 7),
+            last7DayBars: lastDays(fasts, now: now, timeZone: timeZone, count: 7),
             averageDuration30d: averageDuration(fasts, now: now, days: 30),
             goalCompletionRate30d: goalCompletionRate(fasts, now: now, days: 30)
         )
@@ -264,6 +309,20 @@ nonisolated struct EatingWindow: Equatable, Sendable {
     func isOver(asOf now: Date) -> Bool { now >= end }
 }
 
+/// One day's column in the Stats strip.
+nonisolated struct DayBar: Equatable, Sendable, Identifiable {
+    /// Start of that calendar day, in the time zone the strip was built for.
+    let date: Date
+    /// Longest fast ending on the day — or, for today, the live open fast if it's
+    /// already longer. Zero on a day with no fast.
+    let duration: TimeInterval
+    let goalMet: Bool
+    /// Today, with a fast still running.
+    let isInProgress: Bool
+
+    var id: Date { date }
+}
+
 nonisolated struct StatsSummary: Equatable, Sendable {
     var currentStreak: Int
     var longestStreak: Int
@@ -272,6 +331,8 @@ nonisolated struct StatsSummary: Equatable, Sendable {
     var longestFast: TimeInterval
     /// Oldest-first, length 7, true where the day was a goal day.
     var last7Days: [Bool]
+    /// Same seven days with their durations, for the bar strip.
+    var last7DayBars: [DayBar]
     var averageDuration30d: TimeInterval?
     var goalCompletionRate30d: Double?
 }

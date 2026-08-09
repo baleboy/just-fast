@@ -37,6 +37,17 @@ nonisolated enum FastingProtocol: String, CaseIterable, Identifiable, Sendable {
         self == .omad ? "OMAD (23:1)" : rawValue
     }
 
+    /// One-word character sketch shown under the ratio on a plan card (§4.4).
+    var nickname: String {
+        switch self {
+        case .p1410: "gentle"
+        case .p168: "classic"
+        case .p186: "deep"
+        case .p204: "warrior"
+        case .omad: "one meal"
+        }
+    }
+
     /// Resolve a stored `protocolID` string back to a protocol, defaulting to
     /// 16:8 if an unknown value is encountered (forward-compatibility).
     static func from(id: String) -> FastingProtocol {

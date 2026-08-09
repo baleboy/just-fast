@@ -254,6 +254,38 @@ private func approxEqual(_ a: TimeInterval?, _ b: TimeInterval, tol: TimeInterva
         #expect(strip[5] == false)
     }
 
+    @Test func dayBarsCarryTheLongestFastEndingOnEachDay() {
+        let now = date(2026, 7, 29, 18)
+        let fasts = [
+            fast(date(2026, 7, 26, 20), date(2026, 7, 27, 12)), // 16h, goal met
+            fast(date(2026, 7, 27, 14), date(2026, 7, 27, 20)), // 6h, same day
+            fast(date(2026, 7, 24, 22), date(2026, 7, 25, 8)),  // 10h, missed
+        ]
+        let bars = FastingEngine.lastDays(fasts, now: now, timeZone: utc, count: 7)
+        #expect(bars.count == 7)
+
+        // index 6 = today, 4 = two days ago (27th), 2 = four days ago (25th)
+        #expect(approxEqual(bars[4].duration, 16 * 3600))   // the longer of the two
+        #expect(bars[4].goalMet == true)
+        #expect(approxEqual(bars[2].duration, 10 * 3600))
+        #expect(bars[2].goalMet == false)
+        #expect(bars[6].duration == 0)                      // nothing today
+        #expect(bars[6].isInProgress == false)
+    }
+
+    @Test func todaysDayBarTracksTheLiveOpenFast() {
+        let now = date(2026, 7, 29, 18)
+        let bars = FastingEngine.lastDays(
+            [fast(date(2026, 7, 29, 6), nil)], now: now, timeZone: utc, count: 7
+        )
+        let today = bars[6]
+        #expect(today.isInProgress)
+        #expect(approxEqual(today.duration, 12 * 3600))
+        // Still running, so the day isn't a goal day yet — that's what makes the
+        // bar render dashed rather than solid.
+        #expect(today.goalMet == false)
+    }
+
     @Test func longestFastIncludesLiveOpenFast() {
         let now = date(2026, 7, 29, 12)
         let fasts = [

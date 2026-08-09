@@ -34,7 +34,7 @@ struct HistoryView: View {
 
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
+            EmberBackground()
             if fasts.isEmpty {
                 ContentUnavailableView(
                     "No fasts yet",
@@ -51,7 +51,7 @@ struct HistoryView: View {
                                 } label: {
                                     HistoryRow(fast: fast)
                                 }
-                                .listRowBackground(Theme.surface)
+                                .listRowBackground(Theme.card)
                             }
                         }
                     }
@@ -86,7 +86,7 @@ private struct HistoryRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(fast.start.formatted(.dateTime.month().day().hour().minute()))
-                    .font(.subheadline.weight(.medium))
+                    .font(.ember(15, .semibold, relativeTo: .subheadline))
                     .foregroundStyle(Theme.primaryText)
                 if let end = fast.end {
                     Text("→ \(end.formatted(.dateTime.month().day().hour().minute()))")
@@ -95,13 +95,13 @@ private struct HistoryRow: View {
                 } else {
                     Text("In progress")
                         .font(.caption)
-                        .foregroundStyle(Theme.amber)
+                        .foregroundStyle(Theme.accentText)
                 }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
                 Text(durationText)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.ember(15, .bold, relativeTo: .subheadline))
                     .foregroundStyle(Theme.primaryText)
                     .monospacedDigit()
                 badge
@@ -121,15 +121,36 @@ private struct HistoryRow: View {
         if fast.isOpen {
             Label("Open", systemImage: "circle.dashed")
                 .font(.caption2)
-                .foregroundStyle(Theme.amber)
+                .foregroundStyle(Theme.accentText)
         } else if fast.record.isGoalMet {
             Label("Goal met", systemImage: "checkmark.circle.fill")
                 .font(.caption2)
-                .foregroundStyle(Theme.mint)
+                .foregroundStyle(Theme.success)
         } else {
             Label("Under goal", systemImage: "circle")
                 .font(.caption2)
                 .foregroundStyle(Theme.secondaryText)
         }
     }
+}
+
+#Preview {
+    let container = AppContainer.inMemory()
+    let now = Date()
+    for daysAgo in 1...5 {
+        let end = now.addingTimeInterval(-Double(daysAgo) * 86_400)
+        let goal = 16
+        container.mainContext.insert(
+            Fast(
+                start: end.addingTimeInterval(-Double(goal) * 3600 - Double(daysAgo) * 600),
+                end: end,
+                goalHours: goal,
+                protocolID: "16:8",
+                createdVia: .app
+            )
+        )
+    }
+    return NavigationStack { HistoryView() }
+        .modelContainer(container)
+        .tint(Theme.accent)
 }

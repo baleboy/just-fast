@@ -26,7 +26,7 @@ xcodebuild test -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone
   -only-testing:FastinoTests/CurrentStreakTests/threeConsecutiveDaysEndingToday
 ```
 
-Launch with `-seedDemo` (DEBUG only) to populate a streak plus an active fast for screenshots; `-seedEating` seeds the between-fasts state instead.
+Launch with `-seedDemo` (DEBUG only) to populate a streak plus an active fast for screenshots; `-seedEating` seeds the between-fasts state instead. `-tab stats` / `-tab settings` (DEBUG only) opens straight onto another tab — the custom tab bar can't be tapped from `simctl`, so this is how the other screens get screenshotted.
 
 Only the iOS 26.5 simulator runtime satisfies the 26.4 deployment target — installing on the iOS 26.1 devices fails.
 
@@ -42,7 +42,7 @@ xcrun simctl boot "$DEV"; xcrun simctl ui "$DEV" appearance dark
 # build, install, then:
 xcrun simctl launch "$DEV" com.balenet.fastino -seedDemo   # 10h into a 16h fast
 xcrun simctl io "$DEV" screenshot /tmp/hero.png
-sips -Z 620 /tmp/hero.png --out docs/screenshot.png          # keeps it ~45KB
+sips -Z 620 /tmp/hero.png --out docs/screenshot.png          # ~140KB with the Ember gradients
 ```
 
 Always look at the result before committing it — a screenshot that silently captured the wrong tab, light mode, or a half-loaded view is worse than a stale one.
@@ -65,11 +65,11 @@ Keep this layer pure. New stat/validation logic goes here and gets unit tests in
   - `endFast` returns a `FastActionResult` carrying the celebration facts (goal met, new longest fast/streak, current streak) so the UI can decide what to animate.
 
 **3. Surfaces**
-- `Views/` — `RootView` is a three-tab `TabView` (Timer / Stats / Settings), each tab wrapping its own `NavigationStack` so `StatsView` → `HistoryView` pushes stay within the Stats tab. Plus `TimerView` (home, ring + start/end), `EditFastView`, `AdjustTimeSheet`.
+- `Views/` — `RootView` is the three-tab shell (Timer / Stats / Settings) with the custom `EmberTabBar`; all three tabs stay mounted behind each other so switching away doesn't pop `StatsView` → `HistoryView`. Plus `TimerView` (home: `EmberRing` + zone cards + start/end), `StatsView`, `SettingsView`, `HistoryView`, `EditFastView`, `AdjustTimeSheet`.
 - `Intents/FastIntents.swift` — `Start`/`End`/`ToggleFastIntent` + `AppShortcutsProvider`. Only Start/End are App Shortcuts; Siri phrases rely on the `INAlternativeAppNames` aliases in `Info.plist` ("Fasting", "Fast") so `"Start \(.applicationName)"` reads as "start fasting". `ToggleFastIntent` is deliberately *not* an App Shortcut — it stays a Shortcuts-app action and requests confirmation (it's the Back Tap target).
-- `Notifications/NotificationManager.swift` — goal-reached notification (scheduled at start+goal, cancelled on end/edit) and the start reminder (on by default, suppressed while fasting). Permission is requested lazily, never on launch.
+- `Notifications/NotificationManager.swift` — goal-reached notification (scheduled at start+goal, cancelled on end/edit), the fat-burn/ketosis milestones (12h and 14h, skipped when they'd land at or after the goal), and the start reminder (on by default, suppressed while fasting). Permission is requested lazily, never on launch.
   - The start reminder fires at the user's **start-time anchor** (`startReminderHour`/`Minute`, 20:00 by default) — the same instant the eating window closes. Since the anchor never moves it's a single repeating calendar trigger; `FastStore.reconcileNotifications` only has to arm/cancel it (it's suppressed while a fast runs).
-  - **No `UNUserNotificationCenterDelegate`, on purpose** — that's what makes iOS suppress alerts while the app is open, leaving the ring bloom + haptic as the app-open cue (§5). Adding one silently changes product behavior.
+  - **No `UNUserNotificationCenterDelegate`, on purpose** — that's what makes iOS suppress alerts while the app is open, leaving the in-ring "Goal reached" line + haptic as the app-open cue (§5). Adding one silently changes product behavior.
   - `add()` fails silently when permission is denied, so failures are logged and Settings shows a "Notifications are turned off" row; `FastinoApp` re-arms everything on launch and on foreground.
 
 ## Domain rules that are easy to get wrong
@@ -83,4 +83,12 @@ Keep this layer pure. New stat/validation logic goes here and gets unit tests in
 
 ## Design tokens
 
-`Design/Theme.swift` holds the palette (§5): aubergine dark / cream light background, amber for the active ring, **mint is reserved exclusively for success states**. Use the tokens, not literal colors, and don't introduce system blue. Celebration cues are ≤1.5s, non-blocking, and fall back to a color fade under Reduce Motion.
+The UI is the **"Ember"** design system — the fast as a fire burning through metabolic zones. `design_handoff_fastino_ember/` is the handoff it was built from; the approved screens are turn 2 of `Fastino Explorations.dc.html` (2c/2d Timer, 2a/2e Stats, 2b/2f Settings). Apple Health was deliberately skipped — there's no HealthKit integration (§1 non-goals).
+
+- `Design/Theme.swift` — the palette (§5), twice over: dynamic `Color`s for ordinary view code, and numeric `RGBA`/`EmberPalette` values for the ring, which interpolates between zone colours and so can't use an opaque dynamic Color. Plum→black in dark, warm paper in light; the gold→orange→pink heat scale carries the ring bands, the week bars and the primary button; **green is reserved exclusively for success states**. Use tokens, never literal hexes, and don't introduce system blue.
+- `Design/EmberChrome.swift` — `EmberBackground` (the radial glow), `.emberCard()`, `EmberPrimaryButton`, `EmberToggleStyle`, `EmberPressStyle`.
+- `Design/Typography.swift` + `Fastino/Resources/Fonts` — Space Grotesk at 400/600/700, bundled under OFL and registered via `UIAppFonts` in `Info.plist`. Reach for `.ember(_:_:relativeTo:)` (scales with Dynamic Type) or `.emberFixed(_:_:)` where growth would break the layout.
+- `Model/MetabolicZone.swift` — the three bands. Boundaries are **absolute hours (12h, 14h), not fractions of the goal**; a goal that stops short leaves a zone unreachable rather than squeezing it. The ring, the zone cards and the milestone notifications all read from here, so they can't drift apart.
+- `RootView` owns a **custom floating tab bar**, so the three main screens hide their navigation bar and every scroll view pads its bottom by `EmberLayout.tabBarClearance`.
+
+Celebration cues are ≤1.5s, non-blocking, and fall back to a color fade under Reduce Motion.

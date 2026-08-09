@@ -5,12 +5,12 @@ A minimal iOS intermittent-fasting tracker. Logging a fast should be nearly invi
 No accounts, no backend, no analytics, no subscriptions. Your data stays on your device.
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="The Fastino timer part-way through a 16-hour fast, showing the amber progress ring, elapsed time and the clock time the fast ends" width="285">
+  <img src="docs/screenshot.png" alt="The Fastino timer part-way through a 16-hour fast, showing the zone-banded progress ring, elapsed time and the clock time the fast ends" width="285">
 </p>
 
 ## Features
 
-**Timer.** One progress ring covering the whole cycle: amber while you're fasting, blooming to mint once you pass the goal and continuing to count, then lilac for the eating window that follows, counting down to when the next fast is due. Each state shows a live readout and the clock time it ends.
+**Timer.** One ring covering the whole cycle. While you're fasting it burns through the metabolic zones — gold up to 12 hours, orange through fat burn, pink into ketosis — with the hours you've done at full strength and the hours ahead of you dimmed. Three cards under the ring name the zones and track which one you're in. Between fasts the ring goes cold and counts down the eating window to your next start. Each state shows a live readout and the clock time it ends.
 
 **Your schedule doesn't drift.** You pick the time you start fasting, and the eating window closes at that time every day. Fast two hours longer than planned and you've spent two hours of today's eating window — you haven't pushed tomorrow's start two hours later.
 
@@ -22,11 +22,13 @@ Streaks are strict by design: no freezes, no rest days. A goal day is a calendar
 
 **History and editing.** Reverse-chronological, grouped by month. Edit start, end or note; add a fast you forgot to log; delete. Validated against overlaps, backwards times and implausible durations.
 
-**Notifications.** A celebratory alert when you hit your goal, and a daily start reminder at your chosen start time — the same moment your eating window closes. Suppressed automatically while a fast is already running.
+**Notifications.** A celebratory alert when you hit your goal, optional milestone nudges as you cross into fat burn and ketosis, and a daily start reminder at your chosen start time — the same moment your eating window closes. Suppressed automatically while a fast is already running.
 
 **Shortcuts, Siri and Back Tap.** "Hey Siri, start fasting" / "stop fasting" — Start and End ship as App Shortcuts, with app-name aliases so the phrase reads naturally. A state-aware `Toggle` intent lives in the Shortcuts app and asks for confirmation, which is what makes it safe to bind to a Back Tap double-tap — the app's headline interaction.
 
-**Calm by default.** Deep aubergine or cream paper rather than a clinical white dashboard, rounded numerals, and celebrations that last under a second and respect Reduce Motion. Missing a goal is reported neutrally, never with shame.
+**Export.** Every fast as a CSV — start, end, goal, duration, goal met — through the share sheet. It's your data.
+
+**Calm by default.** The "Ember" look: plum-to-black or warm paper rather than a clinical white dashboard, Space Grotesk throughout, and celebrations that last under a second and respect Reduce Motion. Missing a goal is reported neutrally, never with shame.
 
 ## Requirements
 
@@ -49,7 +51,7 @@ xcodebuild test -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone
 
 Or just open `Fastino.xcodeproj` and hit Run.
 
-Two debug-only launch arguments seed sample data for screenshots: `-seedDemo` (a streak plus an active fast) and `-seedEating` (the between-fasts state).
+Debug-only launch arguments help with screenshots: `-seedDemo` (a streak plus an active fast), `-seedEating` (the between-fasts state), and `-tab stats` / `-tab settings` to open on another tab.
 
 ## Architecture
 
@@ -61,7 +63,7 @@ SwiftUI and SwiftData throughout, in three layers:
 
 **Surfaces** — three tabs (Timer, Stats, Settings), plus the App Intents.
 
-Tests use swift-testing (`@Suite` / `@Test`): 55 tests across 9 suites, all against the pure core.
+Tests use swift-testing (`@Suite` / `@Test`): 59 tests across 9 suites, all against the pure core.
 
 ### Not built yet
 
@@ -76,6 +78,7 @@ The engine and intents are structured for reuse by these, but each needs an addi
 - [`specification.md`](specification.md) — the product and technical specification, and the source of truth. Source files reference its sections (`§2`, `§4.6`) in their headers.
 - [`IMPLEMENTATION.md`](IMPLEMENTATION.md) — what is built versus deferred.
 - [`CLAUDE.md`](CLAUDE.md) — orientation for AI coding agents.
+- [`design_handoff_fastino_ember/`](design_handoff_fastino_ember) — the design handoff the current screens were built from.
 
 ## Privacy
 
@@ -84,3 +87,5 @@ There is no backend, no telemetry and no analytics SDK. Fasts are stored locally
 ## License
 
 [MIT](LICENSE) © 2026 Francesco Balestrieri
+
+The bundled [Space Grotesk](https://github.com/floriankarsten/space-grotesk) typeface is used under the SIL Open Font License — see [`Fastino/Resources/Fonts/OFL.txt`](Fastino/Resources/Fonts/OFL.txt).
