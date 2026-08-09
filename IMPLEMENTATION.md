@@ -42,8 +42,11 @@ engine has an exhaustive unit-test suite (30 tests, all green).
   averages, link into history
 - History (grouped by month, reverse-chron), edit/retro-entry/delete with
   validation messages, Settings (plan: protocol + "Start fast at" anchor;
-  reminders; Back Tap tip card)
+  reminders; appearance: Automatic/Light/Dark; Back Tap tip card)
 - `Design/Theme.swift` — the palette tokens (aubergine/cream, amber, mint)
+- `Model/Appearance.swift` + `RootView.preferredColorScheme` — the UI-mode
+  override, applied above the TabView so both palettes and the window
+  background follow it
 
 **Notifications (§4.4)** — `Notifications/NotificationManager.swift`: goal-reached
 (scheduled at start+goal, cancelled on end/edit) and the start reminder (on by

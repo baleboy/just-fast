@@ -11,6 +11,16 @@ import SwiftUI
 import SwiftData
 
 struct RootView: View {
+    /// Read straight from the store rather than passed in: the appearance
+    /// override has to sit above the TabView so every tab — and the window's own
+    /// background — picks it up. `nil` (no settings row yet, first launch)
+    /// means "follow the system", same as `.system`.
+    @Query private var settingsList: [AppSettings]
+
+    private var preferredScheme: ColorScheme? {
+        settingsList.first?.appearance.colorScheme
+    }
+
     var body: some View {
         TabView {
             Tab("Timer", systemImage: "timer") {
@@ -34,6 +44,7 @@ struct RootView: View {
             }
         }
         .tint(Theme.amber)
+        .preferredColorScheme(preferredScheme)
     }
 }
 

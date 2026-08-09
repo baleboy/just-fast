@@ -82,6 +82,18 @@ private struct SettingsForm: View {
                     .foregroundStyle(Theme.secondaryText)
             }
 
+            Section("Appearance") {
+                Picker("Theme", selection: $settings.appearanceID) {
+                    ForEach(Appearance.allCases) { mode in
+                        Text(mode.displayName).tag(mode.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text("Automatic follows your device’s light/dark setting.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondaryText)
+            }
+
             Section("Back Tap") {
                 BackTapTip()
             }
@@ -96,6 +108,7 @@ private struct SettingsForm: View {
         .onChange(of: settings.startReminderHour) { reschedule() }
         .onChange(of: settings.startReminderMinute) { reschedule() }
         .onChange(of: settings.goalNotificationEnabled) { syncGoal() }
+        .onChange(of: settings.appearanceID) { try? modelContext.save() }
         .task { await refreshAlertStatus() }
         // Re-check on return from iOS Settings, where the user may have just
         // flipped permission on or off.

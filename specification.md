@@ -37,6 +37,7 @@ Settings (single object)
   startReminderTime: DateComponents   // local wall-clock time; also the schedule
                                       // anchor the eating window closes at (§4.1)
   goalNotificationEnabled: Bool
+  appearance: enum { system, light, dark }   // UI mode override (§5)
 ```
 
 Derived (never stored): current streak, longest streak, longest fast, averages, goal-completion rate.
@@ -109,6 +110,7 @@ No Live Activities — by decision: the system ends a Live Activity after 8 hour
 **Distinctive, calm, warm.** No default system blue, no clinical white dashboard.
 
 - **Palette**: deep aubergine background (#2B1B33) with warm amber/apricot accents (#FFB25E) for the active fast ring; mint (#7FE0C3) reserved exclusively for success states (goal reached, streak up). Light mode variant: cream paper (#FAF3E8) with the same accents. Colors are tokens — final values tuned during design.
+- **Appearance setting**: the app follows the device's light/dark setting by default, and Settings offers an explicit Light/Dark override for users who keep the system on Automatic but want the app pinned. The override is applied above the tab bar, so it covers every screen, not just the timer.
 - **Typography**: rounded numerals for the timer (SF Rounded), generous size; everything else quiet.
 - **Celebration cues** — small, fast, never blocking:
   - Goal reached while app/watch is open: ring blooms into mint with a soft particle shimmer + success haptic (`.success` on iPhone, `.notification(.success)` on watch).

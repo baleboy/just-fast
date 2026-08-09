@@ -17,24 +17,32 @@ final class AppSettings {
     var startReminderHour: Int = 20
     var startReminderMinute: Int = 0
     var goalNotificationEnabled: Bool = true
+    var appearanceID: String = Appearance.system.rawValue
 
     init(
         activeProtocolID: String = FastingProtocol.p168.rawValue,
         startReminderEnabled: Bool = true,
         startReminderHour: Int = 20,
         startReminderMinute: Int = 0,
-        goalNotificationEnabled: Bool = true
+        goalNotificationEnabled: Bool = true,
+        appearanceID: String = Appearance.system.rawValue
     ) {
         self.activeProtocolID = activeProtocolID
         self.startReminderEnabled = startReminderEnabled
         self.startReminderHour = startReminderHour
         self.startReminderMinute = startReminderMinute
         self.goalNotificationEnabled = goalNotificationEnabled
+        self.appearanceID = appearanceID
     }
 
     var activeProtocol: FastingProtocol {
         get { FastingProtocol.from(id: activeProtocolID) }
         set { activeProtocolID = newValue.rawValue }
+    }
+
+    var appearance: Appearance {
+        get { Appearance.from(id: appearanceID) }
+        set { appearanceID = newValue.rawValue }
     }
 
     var startReminderComponents: DateComponents {
