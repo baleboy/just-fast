@@ -76,7 +76,7 @@ One dedicated Stats screen, its own tab (§4.1), laid out as a 2×2 bento plus t
 - **Current fast** (live, highlighted while one is running) and **longest fast ever**
 - **Streak**: current, with the best alongside it
 - **Goal rate** over the last 30 days, with the average duration as its caption
-- **Last-7-days strip**: one little flame per day. A completed goal day is lit, with a face; a day with nothing logged is unlit and faceless at 30%; **today, still fasting, is a gold flame with a dashed outline and a gentle flicker**, and turns solid the moment the goal is met.
+- **Last-7-days strip**: a bar histogram — seven bars on a 64pt track, height proportional to that day's longest fast against the goal. A goal day is a solid warm gradient (glowing in dark); a day with nothing logged is a neutral stub; **today, still fasting, is the same gradient at half strength with a 2pt dashed accent border**, and fills in solid the moment the goal is met.
 - **History list**: reverse-chronological fasts with duration, goal met/missed badge; tap to edit. Infinite scroll, grouped by month.
 - **Export data** (Settings → General): every fast as a CSV — start, end, goal hours, duration, goal met — shared through the system share sheet.
 
@@ -119,7 +119,8 @@ No Live Activities — by decision: the system ends a Live Activity after 8 hour
 - **Surfaces**: white cards, 24pt radius (22 rows, 20 small), warm soft shadow. A selected card takes the peach accent surface and a 2.5pt border instead of a shadow. Grouped rows are split by **2pt dashed** dividers, not hairlines.
 - **The primary button is chunky and physical**: a gradient pill with a *hard* 3D shadow (a solid colour offset 6pt down, no blur). Pressing moves the cap 3pt down and shrinks the shadow to match.
 - **Chrome**: the system tab bar is replaced by a floating white pill (Timer / Stats / Settings) with the active item on a peach chip. The three main screens carry no navigation bar.
-- **Appearance setting**: the app follows the device's light/dark setting by default, and Settings offers an explicit Light/Dark override. **The design specifies light only** — the dark palette (the same hues over a deep cocoa ground) is derived rather than designed, and is a placeholder until a dark direction is drawn.
+- **Dark scheme — "cozy campfire night"**: #2B1A12 → #211107, cream ink #FFF3E4, muted #C99A7D, accent text #FFB98A. Cards become translucent warm film (`rgba(255,220,180,.07)`) with **no drop shadow**, and everything lit earns a glow the light scheme doesn't have: the mascot and the selected plan flame get a halo, the ring gains a blurred copy of its burned arc, the histogram's goal-day bars glow, and the progress dot inverts to a dark disc ringed in fire. The zone colours themselves are unchanged — the flame is the same flame at night.
+- **Appearance setting**: the app follows the device's light/dark setting by default, and Settings offers an explicit Light/Dark override, cycling through both designed token sets.
 - **Typography**: **Baloo 2** (bundled, OFL, weights 600/700/800, subset to Latin). Everything is rounded and chunky: the live timer is 40pt/800, screen titles 26/800, stat values 32/800, section labels 12–13/800 uppercase, row titles 16/800, captions 12.5–14/600–700.
 - **Motion** — ported from the handoff's live demo:
   - **Launch fill**: the ring sweeps 0 → current over 1.8s, ease-out.

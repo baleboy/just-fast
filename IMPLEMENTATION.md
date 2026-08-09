@@ -7,8 +7,8 @@ Status of the v1 build against `specification.md`. iOS 26 / Xcode 26.4, SwiftUI 
 The iOS app target is complete and verified in the simulator; the streak/stat
 engine has an exhaustive unit-test suite (59 tests, all green). The UI implements
 the "Flame Friend" design system — see `design_handoff_fastino_flame_friend/`
-for the handoff the screens were built from (approved: 4a, 6a, 5a, 5b, plus 3a
-for motion).
+for the handoff the screens were built from (approved: 4a, 6a, 5a, 5b light;
+7a, 7b, 7c dark; 3a for motion).
 
 **Core (pure, `[FastRecord]` + time zone — no SwiftData, §7)**
 - `Model/FastingProtocol.swift` — the fixed protocol list (14:10 … OMAD 23:1)
@@ -57,7 +57,8 @@ for motion).
   one is >24h old, and when a fast ran past both its goal and the anchor
 - Stats screen ("Your journey"): 2×2 bento (current fast in accent, longest fast
   with a mascot in the corner, streak + best, goal rate on the peach surface),
-  the week as seven little flames — lit, unlit, or dashed-and-flickering for
+  the week as a **bar histogram** — height ∝ fast length against goal, solid for
+  a goal day, a neutral stub for a missed one, half-strength and dashed for
   today — and a link into history
 - History (grouped by month, reverse-chron), edit/retro-entry/delete with
   validation messages, Settings (plan cards, each a flame that grows and hardens
@@ -65,7 +66,9 @@ for motion).
   toggles; appearance cycle; CSV export; Back Tap tip card)
 - `Design/Theme.swift` — the Flame Friend palette, as dynamic `Color`s and as
   numeric `RGBA`/`FlamePalette` values the ring and mascot interpolate between.
-  **Light is from the handoff; dark is derived** and marked as such
+  **Both schemes are from the handoff**; dark ("cozy campfire night") swaps
+  cards for translucent film and adds the `glow` token that lights the mascot,
+  the ring, the bars and the progress dot
 - `Design/Typography.swift` + `Resources/Fonts` — Baloo 2 at 600/700/800 (OFL,
   Latin subset), registered through `UIAppFonts`
 - `Design/FlameChrome.swift` — screen gradient (with the calmer resting

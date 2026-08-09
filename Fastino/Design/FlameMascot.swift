@@ -186,6 +186,10 @@ struct FlameMascot: View {
     var blush: Bool = false
     /// Idle bob: 3s while fasting, 4.5s at rest, `nil` to hold still.
     var bobDuration: Double? = 3
+    /// Halo behind the flame. Only the dark scheme lights one — it's what makes
+    /// the mascot read as a fire in the dark rather than a sticker on it.
+    var glow: Color?
+    var glowRadius: CGFloat = 9
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var bobbing = false
@@ -213,6 +217,7 @@ struct FlameMascot: View {
             }
         }
         .frame(width: width, height: height)
+        .shadow(color: glow ?? .clear, radius: glowRadius)
         .offset(y: bobbing ? -height * 0.07 : 0)
         .onAppear(perform: startBobbing)
         .onChange(of: reduceMotion) { _, _ in startBobbing() }
@@ -387,10 +392,12 @@ extension FlameMascot {
             height: height,
             body_: [colors.from.color, colors.to.color],
             tip: showsTip ? tipColor : nil,
-            ink: palette.ink.color,
+            ink: palette.flameInk.color,
             expression: zone.expression,
             blush: blush,
-            bobDuration: bobDuration
+            bobDuration: bobDuration,
+            glow: palette.glow.a > 0 ? palette.glow.alpha(0.45).color : nil,
+            glowRadius: height * 0.21
         )
     }
 
@@ -400,33 +407,26 @@ extension FlameMascot {
             height: height,
             body_: [Color(hex: 0xFFD3A8), Color(hex: 0xFFB98A)],
             tip: nil,
-            ink: palette.ink.color,
+            ink: palette.flameInk.color,
             expression: .dozing,
             blush: true,
-            bobDuration: 4.5
+            bobDuration: 4.5,
+            glow: palette.glow.a > 0 ? palette.glow.alpha(0.35).color : nil,
+            glowRadius: height * 0.18
         )
     }
 
-    /// A small lit flame — the week strip's goal days and the record card's corner.
+    /// A small lit flame — the record card's corner, and the selected plan.
     static func lit(palette: FlamePalette, height: CGFloat, animated: Bool = false) -> FlameMascot {
         FlameMascot(
             height: height,
             body_: [Color(hex: 0xFFB36B), Color(hex: 0xFF8A5C)],
             tip: nil,
-            ink: palette.ink.color,
+            ink: palette.flameInk.color,
             expression: .happy,
-            bobDuration: animated ? 3 : nil
-        )
-    }
-
-    /// An unlit flame with no face — a day with nothing logged.
-    static func unlit(palette: FlamePalette, height: CGFloat) -> FlameMascot {
-        FlameMascot(
-            height: height,
-            body_: [palette.plainFlame.color],
-            tip: nil,
-            ink: nil,
-            bobDuration: nil
+            bobDuration: animated ? 3 : nil,
+            glow: palette.glow.a > 0 ? palette.glow.alpha(0.5).color : nil,
+            glowRadius: height * 0.27
         )
     }
 }
@@ -462,10 +462,7 @@ extension MetabolicZone {
                 FlameMascot(height: 31, body_: [palette.mutedFlame.color], tip: nil,
                             ink: palette.mutedFlameInk.color, expression: .dozing, bobDuration: nil)
             }
-            HStack(spacing: 16) {
-                FlameMascot.lit(palette: palette, height: 34)
-                FlameMascot.unlit(palette: palette, height: 34)
-            }
+            FlameMascot.lit(palette: palette, height: 34)
         }
     }
 }

@@ -105,7 +105,7 @@ struct FlameTabBar: View {
                         .padding(.vertical, 9)
                         .background {
                             if isActive {
-                                Capsule().fill(palette.accentSurface.color)
+                                Capsule().fill(palette.accentSurface.alpha(colorScheme == .dark ? 0.2 : 1).color)
                             }
                         }
                 }
@@ -114,7 +114,7 @@ struct FlameTabBar: View {
             }
         }
         .padding(6)
-        .background(palette.card.color, in: .capsule)
+        .background(palette.elevated.color, in: .capsule)
         .shadow(color: palette.cardShadow.alpha(colorScheme == .dark ? 0.4 : 0.15).color, radius: 8, y: 4)
         // Three labels side by side in one pill can't follow Dynamic Type all the
         // way up without wrapping off-screen; it stops growing at the first

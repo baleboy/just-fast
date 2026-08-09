@@ -16,7 +16,7 @@ No accounts, no backend, no analytics, no subscriptions. Your data stays on your
 
 **Protocols.** 14:10, 16:8, 18:6, 20:4 and OMAD (23:1). The goal is snapshotted when a fast starts, so changing protocol never rewrites history.
 
-**Streaks and stats.** Current and longest streak, current and longest fast, a seven-day strip, and 30-day average duration and goal-completion rate. Everything is derived from stored fasts — nothing is cached, so edits recompute cleanly.
+**Streaks and stats.** Current and longest streak, current and longest fast, a seven-day bar chart of how long each day's fast ran, and 30-day average duration and goal-completion rate. Everything is derived from stored fasts — nothing is cached, so edits recompute cleanly.
 
 Streaks are strict by design: no freezes, no rest days. A goal day is a calendar day on which a completed fast *ended*, which means a fast spanning midnight credits exactly one day.
 
@@ -28,7 +28,7 @@ Streaks are strict by design: no freezes, no rest days. A goal day is a calendar
 
 **Export.** Every fast as a CSV — start, end, goal, duration, goal met — through the share sheet. It's your data.
 
-**Warm by default.** The "Flame Friend" look: peach paper rather than a clinical white dashboard, Baloo 2 throughout, chunky buttons that press like real ones, and celebrations — an ignite, a zone-crossing flash, a burst of embers at the goal — that last under two seconds and respect Reduce Motion. Missing a goal is reported neutrally, never with shame.
+**Warm by default.** The "Flame Friend" look: peach paper by day, a cozy campfire night in dark mode where the flame and the ring actually glow, Baloo 2 throughout, chunky buttons that press like real ones, and celebrations — an ignite, a zone-crossing flash, a burst of embers at the goal — that last under two seconds and respect Reduce Motion. Missing a goal is reported neutrally, never with shame.
 
 ## Requirements
 

@@ -40,6 +40,13 @@ struct FlameRing: View {
         ZStack {
             switch content {
             case let .fast(goalHours, elapsed):
+                // Dark only: a blurred copy of the *burned* arc sitting behind
+                // the ring, so the fire throws light onto the night background.
+                if palette.glow.a > 0 {
+                    band(stops: zoneStops(palette, goalHours: goalHours, elapsed: elapsed, glowOnly: true))
+                        .blur(radius: diameter * (24.0 / 310.0))
+                        .opacity(0.35)
+                }
                 band(stops: zoneStops(palette, goalHours: goalHours, elapsed: elapsed))
                 progressDot(palette, goalHours: goalHours, elapsed: elapsed)
             case .waiting:
@@ -71,14 +78,18 @@ struct FlameRing: View {
         let fraction = filled(goalHours: goalHours, elapsed: elapsed)
         let zone = MetabolicZone.current(elapsed: elapsed * fillScale)
         Circle()
-            // Near-white in both modes: the dot is the "you are here" marker, and
-            // a dark disc on a dark ring would read as a hole punched in it.
-            .fill(colorScheme == .dark ? palette.ink.color : palette.card.color)
+            .fill(palette.dotFill.color)
             .frame(width: dotSize, height: dotSize)
             .overlay {
                 Circle().strokeBorder(palette.zones[zone.rawValue].to.color, lineWidth: 4)
             }
-            .shadow(color: palette.cardShadow.alpha(0.3).color, radius: 5, y: 3)
+            // In light it's a lifted white disc; in dark it's a dark disc with a
+            // ring of fire around it, so the shadow becomes a glow.
+            .shadow(
+                color: palette.glow.a > 0 ? palette.glow.alpha(0.6).color : palette.cardShadow.alpha(0.3).color,
+                radius: palette.glow.a > 0 ? 8 : 5,
+                y: palette.glow.a > 0 ? 0 : 3
+            )
             .offset(y: -(diameter - thickness) / 2)
             .rotationEffect(.degrees(fraction * 360))
     }
@@ -95,7 +106,14 @@ struct FlameRing: View {
         return min(max(elapsed / 3600 / goal, 0), 1) * min(max(fillScale, 0), 1)
     }
 
-    private func zoneStops(_ palette: FlamePalette, goalHours: Int, elapsed: TimeInterval) -> [Gradient.Stop] {
+    /// `glowOnly` drops everything you haven't burned yet, leaving just the lit
+    /// arc for the blurred halo layer.
+    private func zoneStops(
+        _ palette: FlamePalette,
+        goalHours: Int,
+        elapsed: TimeInterval,
+        glowOnly: Bool = false
+    ) -> [Gradient.Stop] {
         let goal = max(Double(goalHours), 1)
         let burned = filled(goalHours: goalHours, elapsed: elapsed) * goal
         let soft = Self.boundarySoftening
@@ -119,15 +137,17 @@ struct FlameRing: View {
             } else if burned <= span.lowerBound {
                 // Unreached: a flat pale preview of the zone, not a gradient —
                 // the ramp is the reward for getting there.
-                stops.append(.init(color: colors.dimmed.color, location: lo))
-                stops.append(.init(color: colors.dimmed.color, location: hi))
+                let unreached = glowOnly ? Color.clear : colors.dimmed.color
+                stops.append(.init(color: unreached, location: lo))
+                stops.append(.init(color: unreached, location: hi))
             } else {
                 let t = (burned - span.lowerBound) / (span.upperBound - span.lowerBound)
                 let split = min(max(start + (end - start) * t, lo), hi)
+                let unreached = glowOnly ? Color.clear : colors.dimmed.color
                 stops.append(.init(color: colors.from.color, location: lo))
                 stops.append(.init(color: RGBA.mix(colors.from, colors.to, t).color, location: split))
-                stops.append(.init(color: colors.dimmed.color, location: split))
-                stops.append(.init(color: colors.dimmed.color, location: hi))
+                stops.append(.init(color: unreached, location: split))
+                stops.append(.init(color: unreached, location: hi))
             }
         }
         return normalize(stops)

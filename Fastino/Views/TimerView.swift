@@ -468,7 +468,7 @@ private struct ZoneBead: View {
                 .frame(width: 10, height: 10)
             Text(label)
                 .font(.flame(12.5, state == .active ? .extraBold : .bold, relativeTo: .caption))
-                .foregroundStyle(state == .active ? palette.accentText.color : palette.mutedFlameInk.color)
+                .foregroundStyle(state == .active ? palette.accentText.color : palette.beadLabel.color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
@@ -479,7 +479,7 @@ private struct ZoneBead: View {
                 Capsule().fill(palette.accentSurface.color)
                     .overlay { Capsule().strokeBorder(palette.accentBorder.color, lineWidth: 2) }
             } else {
-                Capsule().fill(palette.card.color)
+                Capsule().fill(palette.elevated.color)
                     .shadow(color: palette.cardShadow.color, radius: 5, y: 3)
             }
         }
@@ -499,7 +499,7 @@ private struct ZoneBead: View {
     private func dotColor(_ palette: FlamePalette) -> Color {
         switch state {
         case .done, .active: palette.zones[zone.rawValue].dot.color
-        case .upcoming, .unreachable: palette.plainFlame.color
+        case .upcoming, .unreachable: palette.idleDot.color
         }
     }
 }

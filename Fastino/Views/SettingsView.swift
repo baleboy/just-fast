@@ -427,9 +427,11 @@ private struct PlanCard: View {
                 height: proto.flameHeight,
                 body_: [Color(hex: 0xFFB36B), Color(hex: 0xFF8A5C)],
                 tip: nil,
-                ink: palette.ink.color,
+                ink: palette.flameInk.color,
                 expression: proto.flameExpression,
-                bobDuration: 3
+                bobDuration: 3,
+                glow: palette.glow.a > 0 ? palette.glow.alpha(0.6).color : nil,
+                glowRadius: proto.flameHeight * 0.24
             )
         } else {
             FlameMascot(

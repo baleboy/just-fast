@@ -55,7 +55,7 @@ struct StatsView: View {
                     }
                 }
 
-                WeekFlames(bars: summary.last7DayBars)
+                WeekBars(bars: summary.last7DayBars, goalHours: referenceGoalHours)
 
                 NavigationLink { HistoryView() } label: {
                     HStack {
@@ -186,10 +186,15 @@ private struct BentoCard: View {
     }
 }
 
-// MARK: - Week flames
+// MARK: - Week histogram
 
-private struct WeekFlames: View {
+/// Seven bars, one per day, height proportional to that day's longest fast
+/// against the goal. Deliberately a chart and not a row of mascots: the mascot
+/// says *how it's going*, this says *how much*, and only one of those is a
+/// quantity worth reading off a shape.
+private struct WeekBars: View {
     let bars: [DayBar]
+    let goalHours: Int
 
     private var showsFootnote: Bool { bars.contains { $0.isInProgress && !$0.goalMet } }
 
@@ -198,18 +203,19 @@ private struct WeekFlames: View {
             Text("LAST 7 DAYS")
                 .flameSectionLabel()
 
-            HStack(spacing: 0) {
+            HStack(alignment: .bottom, spacing: 9) {
                 ForEach(bars) { bar in
-                    DayFlame(bar: bar)
-                        .frame(maxWidth: .infinity)
+                    DayBarColumn(bar: bar, goalHours: goalHours)
                 }
             }
             .padding(.top, 12)
 
             if showsFootnote {
-                Text("Dashed flame = today, in progress")
+                Text("Bar height = fast length · dashed = today, in progress")
                     .font(.flame(12.5, .semibold, relativeTo: .caption))
                     .foregroundStyle(Theme.muted)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
                     .padding(.top, 10)
             }
         }
@@ -219,57 +225,65 @@ private struct WeekFlames: View {
     }
 }
 
-private struct DayFlame: View {
+private struct DayBarColumn: View {
     let bar: DayBar
+    let goalHours: Int
 
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var flickering = false
 
-    /// Today, still going: the flame is outlined rather than solid, and flickers.
+    /// The 64pt track from the mock. Fixed rather than scaled: it's a chart
+    /// axis, and a chart whose axis moves with Dynamic Type stops comparing.
+    private let track: CGFloat = 64
+
+    /// Height as a fraction of the track. Floored so a day with nothing logged
+    /// still leaves a visible tick rather than disappearing.
+    private var fraction: Double {
+        let goal = TimeInterval(goalHours) * 3600
+        guard goal > 0 else { return 0.08 }
+        return min(max(bar.duration / goal, 0.08), 1)
+    }
+
+    /// Today, still going — drawn at half strength with a dashed outline, and
+    /// filling in solid the moment the goal is met.
     private var isToday: Bool { bar.isInProgress && !bar.goalMet }
+    private var isLit: Bool { bar.goalMet || isToday }
 
     var body: some View {
         let palette = Theme.palette(for: colorScheme)
         VStack(spacing: 5) {
-            Group {
-                if isToday {
-                    BlobShape.body
-                        .fill(LinearGradient(
-                            colors: [palette.zones[0].from.color, palette.zones[0].to.color],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ))
-                        .overlay {
-                            BlobShape.body.strokeBorder(
-                                palette.accentText.color,
-                                style: StrokeStyle(lineWidth: 2, dash: [3.5, 3])
-                            )
-                        }
-                        .frame(width: 30, height: 34)
-                        .scaleEffect(flickering ? 1.06 : 1)
-                        .rotationEffect(.degrees(flickering ? 2 : -2))
-                } else if bar.goalMet {
-                    FlameMascot.lit(palette: palette, height: 34)
-                } else {
-                    FlameMascot.unlit(palette: palette, height: 34)
-                        .opacity(0.3)
+            Spacer(minLength: 0)
+            RoundedRectangle(cornerRadius: 8)
+                .fill(fill(palette))
+                .frame(height: track * fraction)
+                .overlay {
+                    if isToday {
+                        RoundedRectangle(cornerRadius: 8).strokeBorder(
+                            palette.accentText.color,
+                            style: StrokeStyle(lineWidth: 2, dash: [4, 3])
+                        )
+                    }
                 }
-            }
-            .frame(height: 34)
-
+                .shadow(
+                    color: bar.goalMet && palette.glow.a > 0 ? palette.glow.alpha(0.4).color : .clear,
+                    radius: 6
+                )
             Text(bar.date.formatted(.dateTime.weekday(.narrow)))
-                .font(.flameFixed(11, bar.goalMet || isToday ? .extraBold : .bold))
-                .foregroundStyle(bar.goalMet || isToday ? palette.accentText.color : palette.muted.color)
+                .font(.flameFixed(11, isLit ? .extraBold : .bold))
+                .foregroundStyle(isLit ? palette.accentText.color : palette.muted.color)
         }
-        .onAppear {
-            guard isToday, !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                flickering = true
-            }
-        }
+        .frame(maxWidth: .infinity, minHeight: track, alignment: .bottom)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
+    }
+
+    private func fill(_ palette: FlamePalette) -> AnyShapeStyle {
+        guard isLit else { return AnyShapeStyle(palette.chartNeutral.color) }
+        let alpha = isToday ? (colorScheme == .dark ? 0.45 : 0.5) : 1
+        return AnyShapeStyle(LinearGradient(
+            colors: [Color(hex: 0xFFB36B, opacity: alpha), Color(hex: 0xFF8A5C, opacity: alpha)],
+            startPoint: .top,
+            endPoint: .bottom
+        ))
     }
 
     private var accessibilityLabel: String {

@@ -96,7 +96,7 @@ struct FlamePrimaryButton: View {
                 .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .foregroundStyle(.white)
+                .foregroundStyle(palette.buttonLabel.color)
         }
         .buttonStyle(
             HardShadowButtonStyle(
@@ -181,7 +181,7 @@ struct FlameToggleStyle: ToggleStyle {
                 .frame(width: 48, height: 29)
                 .overlay(alignment: configuration.isOn ? .trailing : .leading) {
                     Circle()
-                        .fill(.white)
+                        .fill(configuration.isOn ? Color.white : palette.toggleKnobOff.color)
                         .frame(width: 23, height: 23)
                         .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
                         .padding(.horizontal, 3)
