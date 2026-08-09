@@ -34,7 +34,7 @@ struct HistoryView: View {
 
     var body: some View {
         ZStack {
-            EmberBackground()
+            FlameBackground(resting: true)
             if fasts.isEmpty {
                 ContentUnavailableView(
                     "No fasts yet",
@@ -86,12 +86,12 @@ private struct HistoryRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(fast.start.formatted(.dateTime.month().day().hour().minute()))
-                    .font(.ember(15, .semibold, relativeTo: .subheadline))
-                    .foregroundStyle(Theme.primaryText)
+                    .font(.flame(16, .extraBold, relativeTo: .headline))
+                    .foregroundStyle(Theme.ink)
                 if let end = fast.end {
                     Text("→ \(end.formatted(.dateTime.month().day().hour().minute()))")
                         .font(.caption)
-                        .foregroundStyle(Theme.secondaryText)
+                        .foregroundStyle(Theme.muted)
                 } else {
                     Text("In progress")
                         .font(.caption)
@@ -101,8 +101,8 @@ private struct HistoryRow: View {
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
                 Text(durationText)
-                    .font(.ember(15, .bold, relativeTo: .subheadline))
-                    .foregroundStyle(Theme.primaryText)
+                    .font(.flame(16, .extraBold, relativeTo: .headline))
+                    .foregroundStyle(Theme.ink)
                     .monospacedDigit()
                 badge
             }
@@ -129,7 +129,7 @@ private struct HistoryRow: View {
         } else {
             Label("Under goal", systemImage: "circle")
                 .font(.caption2)
-                .foregroundStyle(Theme.secondaryText)
+                .foregroundStyle(Theme.muted)
         }
     }
 }
@@ -152,5 +152,5 @@ private struct HistoryRow: View {
     }
     return NavigationStack { HistoryView() }
         .modelContainer(container)
-        .tint(Theme.accent)
+        .tint(Theme.accentText)
 }

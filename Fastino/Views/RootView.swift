@@ -3,9 +3,9 @@
 //  Fastino
 //
 //  Navigation shell: three tabs — the timer (home), Stats and Settings (§4.1,
-//  §4.3). The system tab bar is replaced by the Ember floating pill, so the
-//  switching is done here; each tab still owns its NavigationStack so pushes stay
-//  inside their tab (Stats → History).
+//  §4.3). The system tab bar is replaced by the Flame Friend floating white
+//  pill, so the switching is done here; each tab still owns its NavigationStack
+//  so pushes stay inside their tab (Stats → History).
 //
 //  All three tabs stay alive behind each other rather than being rebuilt on
 //  every switch: otherwise flicking to Settings and back would pop you out of
@@ -15,7 +15,7 @@
 import SwiftUI
 import SwiftData
 
-enum EmberTab: String, CaseIterable, Identifiable {
+enum FlameTab: String, CaseIterable, Identifiable {
     case timer = "Timer"
     case stats = "Stats"
     case settings = "Settings"
@@ -24,11 +24,11 @@ enum EmberTab: String, CaseIterable, Identifiable {
 
     /// Which tab the app opens on. Always Timer in a release build; `-tab stats`
     /// lets the screenshot pass reach the other two, which simctl can't tap.
-    static var initial: EmberTab {
+    static var initial: FlameTab {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         if let index = arguments.firstIndex(of: "-tab"), index + 1 < arguments.count,
-           let tab = EmberTab.allCases.first(where: { $0.rawValue.lowercased() == arguments[index + 1].lowercased() }) {
+           let tab = FlameTab.allCases.first(where: { $0.rawValue.lowercased() == arguments[index + 1].lowercased() }) {
             return tab
         }
         #endif
@@ -42,16 +42,20 @@ struct RootView: View {
     /// background — picks it up. `nil` (no settings row yet, first launch)
     /// means "follow the system", same as `.system`.
     @Query private var settingsList: [AppSettings]
+    @Query(sort: \Fast.start, order: .reverse) private var fasts: [Fast]
 
-    @State private var selection: EmberTab = .initial
+    @State private var selection: FlameTab = .initial
 
     private var preferredScheme: ColorScheme? {
         settingsList.first?.appearance.colorScheme
     }
 
+    /// The whole app cools down between fasts, background included.
+    private var isResting: Bool { !fasts.contains(where: \.isOpen) }
+
     var body: some View {
         ZStack(alignment: .bottom) {
-            EmberBackground()
+            FlameBackground(resting: isResting)
 
             ZStack {
                 tab(.timer) { TimerView() }
@@ -61,16 +65,16 @@ struct RootView: View {
 
             // The bar floats over the screens rather than insetting them, so each
             // one keeps its full-bleed background; they leave room for it with
-            // `.emberTabBarClearance()`.
-            EmberTabBar(selection: $selection)
+            // `.flameTabBarClearance()`.
+            FlameTabBar(selection: $selection)
                 .padding(.bottom, 4)
         }
-        .tint(Theme.accent)
+        .tint(Theme.accentText)
         .preferredColorScheme(preferredScheme)
     }
 
     /// Keeps every tab mounted; only the selected one is visible and tappable.
-    private func tab(_ tab: EmberTab, @ViewBuilder content: () -> some View) -> some View {
+    private func tab(_ tab: FlameTab, @ViewBuilder content: () -> some View) -> some View {
         NavigationStack { content() }
             .opacity(selection == tab ? 1 : 0)
             .allowsHitTesting(selection == tab)
@@ -80,43 +84,38 @@ struct RootView: View {
 
 // MARK: - Floating pill tab bar
 
-struct EmberTabBar: View {
-    @Binding var selection: EmberTab
+struct FlameTabBar: View {
+    @Binding var selection: FlameTab
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let palette = Theme.palette(for: colorScheme)
         HStack(spacing: 6) {
-            ForEach(EmberTab.allCases) { tab in
+            ForEach(FlameTab.allCases) { tab in
                 let isActive = tab == selection
                 Button {
                     selection = tab
                 } label: {
                     Text(tab.rawValue)
-                        .font(.ember(13, isActive ? .bold : .semibold, relativeTo: .footnote))
+                        .font(.flame(13, isActive ? .extraBold : .bold, relativeTo: .footnote))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                        .foregroundStyle(isActive ? palette.accentText.color : palette.textSecondary.color)
+                        .foregroundStyle(isActive ? palette.accentText.color : palette.muted.color)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 9)
                         .background {
                             if isActive {
-                                Capsule().fill(palette.accentChip.alpha(colorScheme == .dark ? 0.18 : 0.12).color)
+                                Capsule().fill(palette.accentSurface.color)
                             }
                         }
                 }
-                .buttonStyle(EmberPressStyle())
+                .buttonStyle(FlamePressStyle())
                 .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : .isButton)
             }
         }
         .padding(6)
-        .background(
-            (colorScheme == .dark ? palette.cardBackground.alpha(0.06).color : palette.cardBackground.color)
-                .shadow(.drop(color: palette.cardShadow.alpha(colorScheme == .dark ? 0 : 0.08).color, radius: 8, y: 4)),
-            in: .capsule
-        )
-        .overlay { Capsule().strokeBorder(palette.cardBorder.color, lineWidth: 1) }
-        .background(.ultraThinMaterial, in: .capsule)
+        .background(palette.card.color, in: .capsule)
+        .shadow(color: palette.cardShadow.alpha(colorScheme == .dark ? 0.4 : 0.15).color, radius: 8, y: 4)
         // Three labels side by side in one pill can't follow Dynamic Type all the
         // way up without wrapping off-screen; it stops growing at the first
         // accessibility size and the labels scale down from there.
@@ -129,12 +128,12 @@ extension View {
     /// Room at the bottom of a screen for the floating tab bar. Scaled, because
     /// the bar's own label grows with Dynamic Type and a fixed number would let
     /// it swallow the primary button at the larger sizes.
-    func emberTabBarClearance() -> some View {
-        modifier(EmberTabBarClearance())
+    func flameTabBarClearance() -> some View {
+        modifier(FlameTabBarClearance())
     }
 }
 
-private struct EmberTabBarClearance: ViewModifier {
+private struct FlameTabBarClearance: ViewModifier {
     @ScaledMetric(relativeTo: .footnote) private var clearance: CGFloat = 74
 
     func body(content: Content) -> some View {
@@ -142,10 +141,11 @@ private struct EmberTabBarClearance: ViewModifier {
     }
 }
 
-enum EmberLayout {
+enum FlameLayout {
     static let screenHorizontalPadding: CGFloat = 22
-    /// Status-bar clearance from the mocks — these screens have no nav bar.
-    static let screenTopPadding: CGFloat = 16
+    /// The timer screen is centred and gets a touch more air at the sides.
+    static let timerHorizontalPadding: CGFloat = 24
+    static let screenTopPadding: CGFloat = 14
 }
 
 #Preview {

@@ -6,8 +6,9 @@ Status of the v1 build against `specification.md`. iOS 26 / Xcode 26.4, SwiftUI 
 
 The iOS app target is complete and verified in the simulator; the streak/stat
 engine has an exhaustive unit-test suite (59 tests, all green). The UI implements
-the "Ember" design system — see `design_handoff_fastino_ember/` for the handoff
-the screens were built from.
+the "Flame Friend" design system — see `design_handoff_fastino_flame_friend/`
+for the handoff the screens were built from (approved: 4a, 6a, 5a, 5b, plus 3a
+for motion).
 
 **Core (pure, `[FastRecord]` + time zone — no SwiftData, §7)**
 - `Model/FastingProtocol.swift` — the fixed protocol list (14:10 … OMAD 23:1)
@@ -38,29 +39,37 @@ the screens were built from.
 - Three tabs — Timer / Stats / Settings — each with its own `NavigationStack`,
   behind a custom floating pill tab bar (`RootView`); the three main screens
   carry no navigation bar
-- Timer screen with the **zone ring** (`Views/EmberRing.swift`): gold/orange/pink
-  bands, elapsed at full opacity against the dimmed remainder, blurred glow
-  layer. Three zone cards under it act as its legend, plus the live readout,
-  "ends 12.30" clock time (`TimeFormat.endLabel`, day-qualified when not today),
-  the flickering zone chip, inline start/end time adjustment, record banner,
-  >48h gentle prompt, success haptic (Reduce-Motion aware)
-- Between fasts the ring goes **cold** and counts down the eating window to the
-  daily start-time anchor (time left → time since it closed), so a long fast
-  shortens the window instead of moving tomorrow's start. Falls back to "Ready"
-  before the first fast, once the last one is >24h old, and when a fast ran past
-  both its goal and the anchor
-- Stats screen: 2×2 bento (current fast highlighted with a gradient-filled
-  numeral, longest fast, streak + best, goal rate), the week as ember bars with
-  today dashed while it's still burning, link into history
+- Timer screen with the **flame mascot** inside the **zone ring**
+  (`Design/FlameMascot.swift`, `Views/FlameRing.swift`): gold/orange/pink bands,
+  a pale preview of what's still ahead, and a white progress dot on the fill
+  edge. The mascot's colour and expression follow the zone. Three zone beads act
+  as the legend, plus the live readout and "16h fast · ends 12.30"
+  (`TimeFormat.endLabel`, day-qualified when not today), inline start/end time
+  adjustment, record banner, >48h gentle prompt
+- Motion per the handoff's turn 3: launch fill (1.8s), ignite (0.9s), a flash +
+  soft haptic at each zone crossing, and at the goal an ember burst plus the CTA
+  turning green and flipping to "Log this fast". All Reduce-Motion aware
+- Between fasts the ring goes **dashed**, the mascot becomes a pilot light, and
+  a last-fast recap card (with the streak as a green chip) appears below. It
+  counts down the eating window to the daily start-time anchor (time left → time
+  since it closed), so a long fast shortens the window instead of moving
+  tomorrow's start. Falls back to "Ready" before the first fast, once the last
+  one is >24h old, and when a fast ran past both its goal and the anchor
+- Stats screen ("Your journey"): 2×2 bento (current fast in accent, longest fast
+  with a mascot in the corner, streak + best, goal rate on the peach surface),
+  the week as seven little flames — lit, unlit, or dashed-and-flickering for
+  today — and a link into history
 - History (grouped by month, reverse-chron), edit/retro-entry/delete with
-  validation messages, Settings (plan cards; "Start fast at" anchor; the three
-  notification toggles; appearance cycle; CSV export; Back Tap tip card)
-- `Design/Theme.swift` — the Ember palette, as dynamic `Color`s and as numeric
-  `RGBA`/`EmberPalette` values the ring interpolates between
-- `Design/Typography.swift` + `Resources/Fonts` — Space Grotesk at 400/600/700
-  (OFL), registered through `UIAppFonts`
-- `Design/EmberChrome.swift` — radial background, card treatment, gradient pill
-  button, gradient toggle
+  validation messages, Settings (plan cards, each a flame that grows and hardens
+  with the plan's intensity; "Start fast at" anchor; the three notification
+  toggles; appearance cycle; CSV export; Back Tap tip card)
+- `Design/Theme.swift` — the Flame Friend palette, as dynamic `Color`s and as
+  numeric `RGBA`/`FlamePalette` values the ring and mascot interpolate between.
+  **Light is from the handoff; dark is derived** and marked as such
+- `Design/Typography.swift` + `Resources/Fonts` — Baloo 2 at 600/700/800 (OFL,
+  Latin subset), registered through `UIAppFonts`
+- `Design/FlameChrome.swift` — screen gradient (with the calmer resting
+  variant), card treatment, the hard-3D-shadow button, pill toggle, success chip
 - `Support/FastExport.swift` — the CSV the Settings "Export data" row shares
 - `Model/Appearance.swift` + `RootView.preferredColorScheme` — the UI-mode
   override, applied above the TabView so both palettes and the window

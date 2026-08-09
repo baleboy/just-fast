@@ -3,7 +3,8 @@
 //  Fastino
 //
 //  Plan selection, reminders, appearance, export and the Back Tap setup tip
-//  (§2, §4.4, §4.6) — laid out as Ember cards rather than a system Form.
+//  (§2, §4.4, §4.6) — laid out as Flame Friend cards rather than a system Form.
+//  Each plan is a flame that grows and hardens with the plan's intensity.
 //
 
 import SwiftUI
@@ -15,8 +16,7 @@ struct SettingsView: View {
     @Query private var settingsList: [AppSettings]
 
     var body: some View {
-        ZStack {
-            EmberBackground()
+        Group {
             if let settings = settingsList.first {
                 SettingsForm(settings: settings)
             } else {
@@ -34,7 +34,6 @@ private struct SettingsForm: View {
     @Bindable var settings: AppSettings
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.colorScheme) private var colorScheme
 
     @Query(sort: \Fast.start, order: .reverse) private var fasts: [Fast]
 
@@ -69,43 +68,43 @@ private struct SettingsForm: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text("SETTINGS")
-                    .emberScreenTitle()
+                Text("Settings")
+                    .flameScreenTitle()
 
                 GroupLabel("YOUR FAST PLAN")
-                    .padding(.top, 24)
+                    .padding(.top, 20)
                 planCards
                     .padding(.top, 10)
 
                 // Shown unconditionally: this is the schedule anchor, not a
                 // notification setting — turning reminders off must not hide it.
                 startAnchorCard
-                    .padding(.top, 10)
+                    .padding(.top, 12)
 
                 GroupLabel("NOTIFICATIONS")
-                    .padding(.top, 26)
+                    .padding(.top, 24)
                 notificationCard
                     .padding(.top, 10)
 
                 GroupLabel("GENERAL")
-                    .padding(.top, 26)
+                    .padding(.top, 24)
                 generalCard
                     .padding(.top, 10)
 
                 GroupLabel("BACK TAP")
-                    .padding(.top, 26)
+                    .padding(.top, 24)
                 BackTapTip()
                     .padding(.top, 10)
 
                 Text("Fastino 1.0")
-                    .font(.ember(11, .regular, relativeTo: .caption2))
-                    .foregroundStyle(Theme.tertiaryText)
+                    .font(.flame(12, .semibold, relativeTo: .caption2))
+                    .foregroundStyle(Theme.muted)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 22)
             }
-            .padding(.horizontal, EmberLayout.screenHorizontalPadding)
-            .padding(.top, EmberLayout.screenTopPadding)
-            .emberTabBarClearance()
+            .padding(.horizontal, FlameLayout.screenHorizontalPadding)
+            .padding(.top, FlameLayout.screenTopPadding)
+            .flameTabBarClearance()
         }
         .confirmationDialog(
             "Change your plan?",
@@ -143,12 +142,9 @@ private struct SettingsForm: View {
         GeometryReader { geometry in
             let width = (geometry.size.width - 27) / 4
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 9) {
+                HStack(alignment: .bottom, spacing: 9) {
                     ForEach(FastingProtocol.allCases) { proto in
-                        PlanCard(
-                            proto: proto,
-                            isSelected: proto == settings.activeProtocol
-                        ) {
+                        PlanCard(proto: proto, isSelected: proto == settings.activeProtocol) {
                             select(proto)
                         }
                         .frame(width: width)
@@ -157,23 +153,23 @@ private struct SettingsForm: View {
             }
             .scrollClipDisabled()
         }
-        .frame(height: 78)
+        .frame(height: 116)
     }
 
     private var startAnchorCard: some View {
         VStack(alignment: .leading, spacing: 6) {
             DatePicker(selection: reminderTime, displayedComponents: .hourAndMinute) {
                 Text("Start fast at")
-                    .font(.ember(15, .semibold, relativeTo: .subheadline))
-                    .foregroundStyle(Theme.primaryText)
+                    .font(.flame(16, .extraBold, relativeTo: .headline))
+                    .foregroundStyle(Theme.ink)
             }
             Text("Your eating window closes at this time, so fasting longer than planned doesn’t push tomorrow’s start later.")
-                .font(.ember(12, .regular, relativeTo: .caption))
-                .foregroundStyle(Theme.secondaryText)
+                .font(.flame(12.5, .semibold, relativeTo: .caption))
+                .foregroundStyle(Theme.muted)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .emberCard()
+        .flameCard()
     }
 
     // MARK: Notifications
@@ -186,17 +182,21 @@ private struct SettingsForm: View {
             SettingsRow(title: "Fast complete", subtitle: "When you hit your goal") {
                 Toggle("", isOn: $settings.goalNotificationEnabled)
                     .labelsHidden()
-                    .toggleStyle(EmberToggleStyle())
+                    .toggleStyle(FlameToggleStyle())
             }
             SettingsRow(title: "Milestones", subtitle: "Fat burn, ketosis") {
                 Toggle("", isOn: $settings.milestoneNotificationsEnabled)
                     .labelsHidden()
-                    .toggleStyle(EmberToggleStyle())
+                    .toggleStyle(FlameToggleStyle())
             }
-            SettingsRow(title: "Time to start", subtitle: "Daily reminder, \(reminderTimeLabel)") {
+            SettingsRow(
+                title: "Time to start",
+                subtitle: "Daily reminder, \(reminderTimeLabel)",
+                isLast: true
+            ) {
                 Toggle("", isOn: $settings.startReminderEnabled)
                     .labelsHidden()
-                    .toggleStyle(EmberToggleStyle())
+                    .toggleStyle(FlameToggleStyle())
             }
         }
     }
@@ -212,17 +212,17 @@ private struct SettingsForm: View {
                     RowValue(text: settings.appearance.displayName)
                 }
             }
-            .buttonStyle(EmberPressStyle())
+            .buttonStyle(FlamePressStyle())
 
             ShareLink(
                 item: FastsCSVFile(text: FastExport.csv(fasts.records)),
                 preview: SharePreview("Fastino fasts")
             ) {
-                SettingsRow(title: "Export data", subtitle: "\(fasts.count) fasts as CSV") {
+                SettingsRow(title: "Export data", subtitle: "\(fasts.count) fasts as CSV", isLast: true) {
                     RowValue(text: "")
                 }
             }
-            .buttonStyle(EmberPressStyle())
+            .buttonStyle(FlamePressStyle())
             .disabled(fasts.isEmpty)
             .opacity(fasts.isEmpty ? 0.5 : 1)
         }
@@ -241,7 +241,7 @@ private struct SettingsForm: View {
 
     private func apply(_ proto: FastingProtocol) {
         pendingProtocol = nil
-        withAnimation(.snappy(duration: 0.2)) {
+        withAnimation(.snappy(duration: 0.25)) {
             settings.activeProtocol = proto
         }
         try? modelContext.save()
@@ -287,21 +287,23 @@ private struct GroupLabel: View {
     init(_ text: String) { self.text = text }
 
     var body: some View {
-        Text(text).emberSectionLabel()
+        Text(text)
+            .font(.flame(13, .extraBold, relativeTo: .caption))
+            .tracking(0.8)
+            .foregroundStyle(Theme.muted)
     }
 }
 
-/// A card of rows separated by hairlines — the settings equivalent of a Form
-/// section, in the Ember card treatment.
+/// A card of rows split by the dashed dividers this direction uses instead of
+/// hairlines — the settings equivalent of a Form section.
 private struct CardGroup<Content: View>: View {
     @ViewBuilder let content: Content
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
             content
         }
-        .emberCard()
+        .flameCard()
         .clipShape(.rect(cornerRadius: Radius.card))
     }
 }
@@ -309,20 +311,20 @@ private struct CardGroup<Content: View>: View {
 private struct SettingsRow<Trailing: View>: View {
     let title: String
     var subtitle: String?
+    /// The last row in a group draws no divider under it.
+    var isLast: Bool = false
     @ViewBuilder let trailing: Trailing
-
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(title)
-                    .font(.ember(15, .semibold, relativeTo: .subheadline))
-                    .foregroundStyle(Theme.primaryText)
+                    .font(.flame(16, .extraBold, relativeTo: .headline))
+                    .foregroundStyle(Theme.ink)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.ember(12, .regular, relativeTo: .caption))
-                        .foregroundStyle(Theme.secondaryText)
+                        .font(.flame(12.5, .semibold, relativeTo: .caption))
+                        .foregroundStyle(Theme.muted)
                 }
             }
             Spacer(minLength: 8)
@@ -332,13 +334,28 @@ private struct SettingsRow<Trailing: View>: View {
         .padding(.vertical, 14)
         .contentShape(.rect)
         .overlay(alignment: .bottom) {
-            // Hairline between rows; the last one is trimmed by the card's clip.
-            Rectangle()
-                .fill(Theme.cardSeparator)
-                .frame(height: 1)
-                .padding(.leading, 16)
-                .offset(y: 1)
+            if !isLast {
+                DashedDivider()
+            }
         }
+    }
+}
+
+/// 2pt dashed rule in the warm divider tint — this direction's separator.
+private struct DashedDivider: View {
+    var body: some View {
+        DividerLine()
+            .stroke(Theme.divider, style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
+            .frame(height: 2)
+    }
+}
+
+private struct DividerLine: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        return path
     }
 }
 
@@ -349,18 +366,21 @@ private struct RowValue: View {
         HStack(spacing: 6) {
             if !text.isEmpty {
                 Text(text)
-                    .font(.ember(14, .regular, relativeTo: .subheadline))
-                    .foregroundStyle(Theme.secondaryText)
+                    .font(.flame(14, .bold, relativeTo: .subheadline))
+                    .foregroundStyle(Theme.muted)
             }
-            Image(systemName: "arrow.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.secondaryText)
+            Text("→")
+                .font(.flame(14, .bold, relativeTo: .subheadline))
+                .foregroundStyle(Theme.muted)
         }
     }
 }
 
 // MARK: - Plan card
 
+/// The plan picker: each option is a flame that grows and hardens with the
+/// plan's intensity, so the row reads as a difficulty scale before you've read
+/// a single ratio.
 private struct PlanCard: View {
     let proto: FastingProtocol
     let isSelected: Bool
@@ -371,39 +391,78 @@ private struct PlanCard: View {
     var body: some View {
         let palette = Theme.palette(for: colorScheme)
         Button(action: action) {
-            VStack(spacing: 3) {
-                ratio(palette)
+            VStack(spacing: 4) {
+                Spacer(minLength: 0)
+                flame(palette)
+                Text(proto.rawValue)
+                    .font(.flame(19, .extraBold, relativeTo: .title3))
+                    .foregroundStyle(isSelected ? palette.accentText.color : palette.ink.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 Text(isSelected ? "current" : proto.nickname)
-                    .font(.emberFixed(11, isSelected ? .bold : .regular))
-                    .foregroundStyle(isSelected ? palette.accentText.color : palette.textSecondary.color)
+                    .font(.flameFixed(11, isSelected ? .extraBold : .bold))
+                    .foregroundStyle(isSelected ? palette.accentText.color : palette.muted.color)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
             .padding(.horizontal, 6)
-            .emberCard(
-                radius: Radius.planCard,
-                fill: isSelected ? palette.accent.alpha(colorScheme == .dark ? 0.14 : 0.1).color : nil,
-                border: isSelected ? palette.accent.color : nil,
-                glow: isSelected ? palette.accent.alpha(colorScheme == .dark ? 0.3 : 0.25).color : nil
+            .flameCard(
+                radius: Radius.smallCard,
+                fill: isSelected ? palette.accentSurface.color : nil,
+                border: isSelected ? palette.accentBorder.color : nil
             )
         }
-        .buttonStyle(EmberPressStyle())
+        .buttonStyle(FlamePressStyle())
         .accessibilityLabel("\(proto.displayName), \(proto.nickname)")
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
     @ViewBuilder
-    private func ratio(_ palette: EmberPalette) -> some View {
-        let text = Text(proto.rawValue)
-            .font(.ember(24, .bold, relativeTo: .title2))
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
+    private func flame(_ palette: FlamePalette) -> some View {
         if isSelected {
-            text.foregroundStyle(Theme.heatGradient(colorScheme))
+            FlameMascot(
+                height: proto.flameHeight,
+                body_: [Color(hex: 0xFFB36B), Color(hex: 0xFF8A5C)],
+                tip: nil,
+                ink: palette.ink.color,
+                expression: proto.flameExpression,
+                bobDuration: 3
+            )
         } else {
-            text.foregroundStyle(Theme.primaryText)
+            FlameMascot(
+                height: proto.flameHeight,
+                body_: [palette.mutedFlame.color],
+                tip: nil,
+                ink: palette.mutedFlameInk.color,
+                expression: proto.flameExpression,
+                bobDuration: nil
+            )
+        }
+    }
+}
+
+private extension FastingProtocol {
+    /// The flame grows with the plan — 31 through 50pt across the five options.
+    var flameHeight: CGFloat {
+        switch self {
+        case .p1410: 31
+        case .p168: 36
+        case .p186: 41
+        case .p204: 46
+        case .omad: 50
+        }
+    }
+
+    /// …and its face hardens to match.
+    var flameExpression: FlameExpression {
+        switch self {
+        case .p1410: .sleepy
+        case .p168: .happy
+        case .p186: .focused
+        case .p204, .omad: .fierce
         }
     }
 }
@@ -418,29 +477,28 @@ private struct NotificationsBlockedRow: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let palette = Theme.palette(for: colorScheme)
         VStack(alignment: .leading, spacing: 8) {
             Label("Notifications are turned off", systemImage: "bell.slash")
-                .font(.ember(14, .semibold, relativeTo: .subheadline))
-                .foregroundStyle(Theme.primaryText)
+                .font(.flame(15, .extraBold, relativeTo: .subheadline))
+                .foregroundStyle(palette.ink.color)
             Text("Nothing below can reach you until you allow notifications for Fastino in iOS Settings.")
-                .font(.ember(12, .regular, relativeTo: .caption))
-                .foregroundStyle(Theme.secondaryText)
+                .font(.flame(12.5, .semibold, relativeTo: .caption))
+                .foregroundStyle(palette.muted.color)
             Button("Open iOS Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     openURL(url)
                 }
             }
-            .font(.ember(12, .semibold, relativeTo: .caption))
+            .font(.flame(13, .extraBold, relativeTo: .caption))
             .buttonStyle(.plain)
-            .foregroundStyle(Theme.accentText)
+            .foregroundStyle(palette.accentText.color)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(Theme.accentChip)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(Theme.cardSeparator).frame(height: 1)
-        }
+        .background(palette.accentSurface.color)
+        .overlay(alignment: .bottom) { DashedDivider() }
     }
 }
 
@@ -450,23 +508,23 @@ private struct BackTapTip: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Toggle a fast with a double-tap", systemImage: "hand.tap")
-                .font(.ember(14, .semibold, relativeTo: .subheadline))
-                .foregroundStyle(Theme.primaryText)
+                .font(.flame(15, .extraBold, relativeTo: .subheadline))
+                .foregroundStyle(Theme.ink)
             Text("""
             1. In the Shortcuts app, make a shortcut with the single action “Toggle Fast” and name it Toggle Fast
             2. Open Settings → Accessibility → Touch → Back Tap
             3. Choose Double Tap
             4. Scroll to Shortcuts and pick “Toggle Fast”
             """)
-            .font(.ember(12, .regular, relativeTo: .caption))
-            .foregroundStyle(Theme.secondaryText)
+            .font(.flame(12.5, .semibold, relativeTo: .caption))
+            .foregroundStyle(Theme.muted)
             Text("You’ll be asked to confirm before each fast starts or ends, so an accidental tap can’t catch you out.")
-                .font(.ember(12, .regular, relativeTo: .caption))
-                .foregroundStyle(Theme.secondaryText)
+                .font(.flame(12.5, .semibold, relativeTo: .caption))
+                .foregroundStyle(Theme.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .emberCard()
+        .flameCard()
     }
 }
 

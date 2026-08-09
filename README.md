@@ -5,12 +5,12 @@ A minimal iOS intermittent-fasting tracker. Logging a fast should be nearly invi
 No accounts, no backend, no analytics, no subscriptions. Your data stays on your device.
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="The Fastino timer part-way through a 16-hour fast, showing the zone-banded progress ring, elapsed time and the clock time the fast ends" width="285">
+  <img src="docs/screenshot.png" alt="The Fastino timer part-way through a 16-hour fast: the flame mascot inside the zone-banded progress ring, with the elapsed time and the clock time the fast ends" width="285">
 </p>
 
 ## Features
 
-**Timer.** One ring covering the whole cycle. While you're fasting it burns through the metabolic zones — gold up to 12 hours, orange through fat burn, pink into ketosis — with the hours you've done at full strength and the hours ahead of you dimmed. Three cards under the ring name the zones and track which one you're in. Between fasts the ring goes cold and counts down the eating window to your next start. Each state shows a live readout and the clock time it ends.
+**Timer.** A little flame lives inside the ring, and it's the fast made visible. It changes colour and expression as you cross the metabolic zones — gold and happy up to 12 hours, deep orange and determined through fat burn, pink and proud into ketosis — while the ring fills in the same colours and three beads underneath name the zones. Between fasts the flame settles into a pale pilot light, the ring goes dashed, and a countdown runs to your next start.
 
 **Your schedule doesn't drift.** You pick the time you start fasting, and the eating window closes at that time every day. Fast two hours longer than planned and you've spent two hours of today's eating window — you haven't pushed tomorrow's start two hours later.
 
@@ -28,7 +28,7 @@ Streaks are strict by design: no freezes, no rest days. A goal day is a calendar
 
 **Export.** Every fast as a CSV — start, end, goal, duration, goal met — through the share sheet. It's your data.
 
-**Calm by default.** The "Ember" look: plum-to-black or warm paper rather than a clinical white dashboard, Space Grotesk throughout, and celebrations that last under a second and respect Reduce Motion. Missing a goal is reported neutrally, never with shame.
+**Warm by default.** The "Flame Friend" look: peach paper rather than a clinical white dashboard, Baloo 2 throughout, chunky buttons that press like real ones, and celebrations — an ignite, a zone-crossing flash, a burst of embers at the goal — that last under two seconds and respect Reduce Motion. Missing a goal is reported neutrally, never with shame.
 
 ## Requirements
 
@@ -78,7 +78,7 @@ The engine and intents are structured for reuse by these, but each needs an addi
 - [`specification.md`](specification.md) — the product and technical specification, and the source of truth. Source files reference its sections (`§2`, `§4.6`) in their headers.
 - [`IMPLEMENTATION.md`](IMPLEMENTATION.md) — what is built versus deferred.
 - [`CLAUDE.md`](CLAUDE.md) — orientation for AI coding agents.
-- [`design_handoff_fastino_ember/`](design_handoff_fastino_ember) — the design handoff the current screens were built from.
+- [`design_handoff_fastino_flame_friend/`](design_handoff_fastino_flame_friend) — the design handoff the current screens were built from.
 
 ## Privacy
 
@@ -88,4 +88,4 @@ There is no backend, no telemetry and no analytics SDK. Fasts are stored locally
 
 [MIT](LICENSE) © 2026 Francesco Balestrieri
 
-The bundled [Space Grotesk](https://github.com/floriankarsten/space-grotesk) typeface is used under the SIL Open Font License — see [`Fastino/Resources/Fonts/OFL.txt`](Fastino/Resources/Fonts/OFL.txt).
+The bundled [Baloo 2](https://github.com/EkType/Baloo2) typeface is used under the SIL Open Font License — see [`Fastino/Resources/Fonts/OFL-Baloo2.txt`](Fastino/Resources/Fonts/OFL-Baloo2.txt).

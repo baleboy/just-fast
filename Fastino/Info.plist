@@ -15,9 +15,9 @@
 	</array>
 	<key>UIAppFonts</key>
 	<array>
-		<string>SpaceGrotesk-Regular.ttf</string>
-		<string>SpaceGrotesk-SemiBold.ttf</string>
-		<string>SpaceGrotesk-Bold.ttf</string>
+		<string>Baloo2-SemiBold.ttf</string>
+		<string>Baloo2-Bold.ttf</string>
+		<string>Baloo2-ExtraBold.ttf</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

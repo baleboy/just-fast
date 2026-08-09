@@ -2,9 +2,9 @@
 //  StatsView.swift
 //  Fastino
 //
-//  The Stats screen (§4.3): a glowing bento of streaks and records, the week as
-//  ember bars, and a link into full history. Everything is derived by the pure
-//  engine — nothing here is stored.
+//  The Stats screen (§4.3): a soft bento of streaks and records, the week as a
+//  row of little flames, and a link into full history. Everything is derived by
+//  the pure engine — nothing here is stored.
 //
 
 import SwiftUI
@@ -14,7 +14,7 @@ struct StatsView: View {
     @Query(sort: \Fast.start, order: .reverse) private var fasts: [Fast]
     @Query private var settingsList: [AppSettings]
 
-    /// The goal the bars are measured against: the running fast's snapshotted
+    /// The goal the flames are measured against: the running fast's snapshotted
     /// goal while one is open, otherwise the plan currently selected.
     private var referenceGoalHours: Int {
         fasts.first(where: \.isOpen)?.goalHours
@@ -23,32 +23,31 @@ struct StatsView: View {
     }
 
     var body: some View {
-        ZStack {
-            EmberBackground()
-            // Refresh once a second so the live "current fast" ticks.
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                let summary = FastingEngine.summary(fasts.records, now: context.date, timeZone: .current)
-                content(summary)
-            }
+        // Refresh once a second so the live "current fast" ticks.
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let summary = FastingEngine.summary(fasts.records, now: context.date, timeZone: .current)
+            content(summary)
         }
         .toolbar(.hidden, for: .navigationBar)
     }
 
     private func content(_ summary: StatsSummary) -> some View {
         ScrollView {
-            VStack(spacing: 10) {
-                Text("STATS")
-                    .emberScreenTitle()
-                    .padding(.bottom, 12)
+            VStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: -2) {
+                    Text("Your journey")
+                        .flameScreenTitle()
+                    Text("Last 30 days")
+                        .font(.flame(14, .semibold, relativeTo: .subheadline))
+                        .foregroundStyle(Theme.muted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.bottom, 6)
 
-                Grid(horizontalSpacing: 10, verticalSpacing: 10) {
+                Grid(horizontalSpacing: 12, verticalSpacing: 12) {
                     GridRow {
                         currentFastCard(summary)
-                        BentoCard(label: "LONGEST FAST", caption: "personal best") {
-                            BentoValue(text: summary.longestFast > 0
-                                       ? DurationFormat.hoursMinutes(summary.longestFast)
-                                       : "—")
-                        }
+                        longestFastCard(summary)
                     }
                     GridRow {
                         streakCard(summary)
@@ -56,27 +55,27 @@ struct StatsView: View {
                     }
                 }
 
-                WeekStrip(bars: summary.last7DayBars, goalHours: referenceGoalHours)
+                WeekFlames(bars: summary.last7DayBars)
 
                 NavigationLink { HistoryView() } label: {
                     HStack {
                         Text("History")
-                            .font(.ember(15, .bold, relativeTo: .subheadline))
-                            .foregroundStyle(Theme.primaryText)
+                            .font(.flame(16, .extraBold, relativeTo: .headline))
+                            .foregroundStyle(Theme.ink)
                         Spacer()
-                        Image(systemName: "arrow.right")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(Theme.secondaryText)
+                        Text("→")
+                            .font(.flame(16, .extraBold, relativeTo: .headline))
+                            .foregroundStyle(Theme.accentText)
                     }
                     .padding(.horizontal, 18)
                     .padding(.vertical, 15)
-                    .emberCard(radius: Radius.planCard)
+                    .flameCard(radius: Radius.row)
                 }
-                .buttonStyle(EmberPressStyle())
+                .buttonStyle(FlamePressStyle())
             }
-            .padding(.horizontal, EmberLayout.screenHorizontalPadding)
-            .padding(.top, EmberLayout.screenTopPadding)
-            .emberTabBarClearance()
+            .padding(.horizontal, FlameLayout.screenHorizontalPadding)
+            .padding(.top, FlameLayout.screenTopPadding)
+            .flameTabBarClearance()
         }
     }
 
@@ -89,209 +88,195 @@ struct StatsView: View {
             let percent = Int((min(elapsed / goalInterval, 1) * 100).rounded())
             BentoCard(
                 label: "CURRENT FAST",
-                caption: "\(percent)% of \(referenceGoalHours)h",
-                highlighted: true
-            ) {
-                BentoValue(text: DurationFormat.hoursMinutes(elapsed), style: .gradient)
-            }
+                value: DurationFormat.hoursMinutes(elapsed),
+                valueColor: Theme.accentText,
+                caption: "elapsed · \(percent)% of \(referenceGoalHours)h"
+            )
         } else {
-            BentoCard(label: "CURRENT FAST", caption: "no fast running") {
-                BentoValue(text: "—")
-            }
+            BentoCard(label: "CURRENT FAST", value: "—", caption: "no fast running")
         }
+    }
+
+    private func longestFastCard(_ summary: StatsSummary) -> some View {
+        BentoCard(
+            label: "LONGEST FAST",
+            value: summary.longestFast > 0 ? DurationFormat.hoursMinutes(summary.longestFast) : "—",
+            caption: "your record",
+            // The flame turns up to admire your best — the one bit of mascot
+            // presence outside the timer.
+            showsMascot: summary.longestFast > 0
+        )
     }
 
     private func streakCard(_ summary: StatsSummary) -> some View {
         BentoCard(
             label: "STREAK",
-            caption: summary.currentStreak > 0 ? "keep it burning" : "finish today to relight"
-        ) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                BentoValue(text: "\(summary.currentStreak)")
-                Text("best \(summary.longestStreak)")
-                    .font(.ember(12, .regular, relativeTo: .caption))
-                    .foregroundStyle(Theme.tertiaryText)
-            }
-        }
+            value: "\(summary.currentStreak)",
+            caption: summary.currentStreak > 0 ? "keep it lit" : "finish today to relight",
+            trailingValue: "best \(summary.longestStreak)"
+        )
     }
 
     private func goalRateCard(_ summary: StatsSummary) -> some View {
         BentoCard(
             label: "GOAL RATE",
+            value: summary.goalCompletionRate30d.map { "\(Int(($0 * 100).rounded()))%" } ?? "—",
             caption: summary.averageDuration30d.map { "avg \(DurationFormat.hoursMinutes($0)) · 30 days" }
-                ?? "last 30 days"
-        ) {
-            BentoValue(
-                text: summary.goalCompletionRate30d.map { "\(Int(($0 * 100).rounded()))%" } ?? "—",
-                style: summary.goalCompletionRate30d == nil ? .plain : .success
-            )
-        }
+                ?? "last 30 days",
+            onAccentSurface: true
+        )
     }
 }
 
-// MARK: - Bento pieces
+// MARK: - Bento card
 
-private struct BentoCard<Value: View>: View {
+private struct BentoCard: View {
     let label: String
+    let value: String
+    var valueColor: Color?
     let caption: String
-    var highlighted: Bool = false
-    @ViewBuilder let value: Value
+    /// The small "best 2" sitting next to the streak number.
+    var trailingValue: String?
+    var showsMascot: Bool = false
+    /// The goal-rate card sits on peach instead of white.
+    var onAccentSurface: Bool = false
 
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let palette = Theme.palette(for: colorScheme)
+        let secondary = onAccentSurface ? palette.onAccentSurface.color : palette.muted.color
+
         VStack(alignment: .leading, spacing: 0) {
             Text(label)
-                .emberSectionLabel()
-            value
-                .padding(.top, 6)
+                .flameSectionLabel(secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(value)
+                    .font(.flame(32, .extraBold, relativeTo: .title))
+                    .foregroundStyle(valueColor ?? (onAccentSurface ? palette.accentText.color : palette.ink.color))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                if let trailingValue {
+                    Text(trailingValue)
+                        .font(.flame(13, .bold, relativeTo: .caption))
+                        .foregroundStyle(secondary.opacity(0.85))
+                        .lineLimit(1)
+                }
+            }
+            .padding(.top, 4)
             Text(caption)
-                .font(.ember(12, .regular, relativeTo: .caption))
-                .foregroundStyle(Theme.secondaryText)
-                .padding(.top, 2)
+                .font(.flame(12.5, .semibold, relativeTo: .caption))
+                .foregroundStyle(secondary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(15)
-        .emberCard(
-            fill: highlighted ? palette.accent.alpha(colorScheme == .dark ? 0.1 : 0.08).color : nil,
-            border: highlighted ? palette.accent.alpha(colorScheme == .dark ? 0.45 : 0.6).color : nil,
-            glow: highlighted ? palette.accent.alpha(0.18).color : nil
-        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(16)
+        .overlay(alignment: .topTrailing) {
+            if showsMascot {
+                FlameMascot.lit(palette: palette, height: 30)
+                    .padding(.top, 10)
+                    .padding(.trailing, 12)
+            }
+        }
+        .flameCard(fill: onAccentSurface ? palette.accentSurface.color : nil)
         .accessibilityElement(children: .combine)
     }
 }
 
-private struct BentoValue: View {
-    enum Style { case plain, gradient, success }
+// MARK: - Week flames
 
-    let text: String
-    var style: Style = .plain
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        let value = Text(text)
-            .font(.ember(30, .bold, relativeTo: .title))
-            .tracking(-0.6)
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
-
-        switch style {
-        case .plain:
-            value.foregroundStyle(Theme.primaryText)
-        case .success:
-            value.foregroundStyle(Theme.success)
-        case .gradient:
-            // The heat gradient as the numeral's own fill — the one place a value
-            // is painted rather than coloured.
-            value.foregroundStyle(Theme.heatGradient(colorScheme))
-        }
-    }
-}
-
-// MARK: - Week strip
-
-private struct WeekStrip: View {
+private struct WeekFlames: View {
     let bars: [DayBar]
-    let goalHours: Int
-
-    @Environment(\.colorScheme) private var colorScheme
 
     private var showsFootnote: Bool { bars.contains { $0.isInProgress && !$0.goalMet } }
 
     var body: some View {
-        let palette = Theme.palette(for: colorScheme)
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("LAST 7 DAYS")
-                    .emberSectionLabel()
-                Spacer()
-                Text("goal \(goalHours)h")
-                    .font(.ember(11, .regular, relativeTo: .caption2))
-                    .foregroundStyle(Theme.tertiaryText)
-            }
+            Text("LAST 7 DAYS")
+                .flameSectionLabel()
 
-            HStack(alignment: .bottom, spacing: 9) {
+            HStack(spacing: 0) {
                 ForEach(bars) { bar in
-                    DayColumn(bar: bar, goalHours: goalHours)
+                    DayFlame(bar: bar)
+                        .frame(maxWidth: .infinity)
                 }
             }
-            .frame(height: 74 + 6 + 14, alignment: .bottom)
-            .padding(.top, 14)
+            .padding(.top, 12)
 
             if showsFootnote {
-                Text("Dashed bar = today, still burning")
-                    .font(.ember(11.5, .regular, relativeTo: .caption2))
-                    .foregroundStyle(palette.textSecondary.alpha(0.8).color)
+                Text("Dashed flame = today, in progress")
+                    .font(.flame(12.5, .semibold, relativeTo: .caption))
+                    .foregroundStyle(Theme.muted)
                     .padding(.top, 10)
             }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .emberCard()
+        .flameCard()
     }
 }
 
-private struct DayColumn: View {
+private struct DayFlame: View {
     let bar: DayBar
-    let goalHours: Int
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var flickering = false
 
-    /// Height as a fraction of the 74pt track. Floored so a day with nothing
-    /// logged still leaves an ember rather than vanishing.
-    private var fraction: Double {
-        let goal = TimeInterval(goalHours) * 3600
-        guard goal > 0 else { return 0.1 }
-        return min(max(bar.duration / goal, 0.1), 1)
-    }
-
-    /// Lit = a completed goal day, or today's fast still going.
-    private var isLit: Bool { bar.goalMet || bar.isInProgress }
-    private var isDashed: Bool { bar.isInProgress && !bar.goalMet }
+    /// Today, still going: the flame is outlined rather than solid, and flickers.
+    private var isToday: Bool { bar.isInProgress && !bar.goalMet }
 
     var body: some View {
         let palette = Theme.palette(for: colorScheme)
-        VStack(spacing: 6) {
-            Spacer(minLength: 0)
-            Capsule()
-                .fill(fill(palette))
-                .frame(height: 74 * fraction)
-                .overlay {
-                    if isDashed {
-                        Capsule().strokeBorder(
-                            palette.accentText.alpha(0.8).color,
-                            style: StrokeStyle(lineWidth: 1, dash: [4, 3])
-                        )
-                    }
+        VStack(spacing: 5) {
+            Group {
+                if isToday {
+                    BlobShape.body
+                        .fill(LinearGradient(
+                            colors: [palette.zones[0].from.color, palette.zones[0].to.color],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ))
+                        .overlay {
+                            BlobShape.body.strokeBorder(
+                                palette.accentText.color,
+                                style: StrokeStyle(lineWidth: 2, dash: [3.5, 3])
+                            )
+                        }
+                        .frame(width: 30, height: 34)
+                        .scaleEffect(flickering ? 1.06 : 1)
+                        .rotationEffect(.degrees(flickering ? 2 : -2))
+                } else if bar.goalMet {
+                    FlameMascot.lit(palette: palette, height: 34)
+                } else {
+                    FlameMascot.unlit(palette: palette, height: 34)
+                        .opacity(0.3)
                 }
-                .shadow(
-                    color: isLit && !isDashed ? palette.accent.alpha(0.45).color : .clear,
-                    radius: 7,
-                    y: colorScheme == .dark ? 0 : 4
-                )
+            }
+            .frame(height: 34)
+
             Text(bar.date.formatted(.dateTime.weekday(.narrow)))
-                .font(.emberFixed(10.5, isLit ? .bold : .regular))
-                .foregroundStyle(isLit ? palette.accentText.color : palette.textTertiary.color)
+                .font(.flameFixed(11, bar.goalMet || isToday ? .extraBold : .bold))
+                .foregroundStyle(bar.goalMet || isToday ? palette.accentText.color : palette.muted.color)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .onAppear {
+            guard isToday, !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                flickering = true
+            }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
-    }
-
-    private func fill(_ palette: EmberPalette) -> AnyShapeStyle {
-        guard isLit else { return AnyShapeStyle(palette.mutedFill.color) }
-        let colors = palette.heatGradient.map { isDashed ? $0.alpha(0.5).color : $0.color }
-        return AnyShapeStyle(LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom))
     }
 
     private var accessibilityLabel: String {
         let day = bar.date.formatted(.dateTime.weekday(.wide))
         if bar.duration <= 0 { return "\(day), no fast" }
         let length = DurationFormat.hoursMinutes(bar.duration)
-        if bar.isInProgress && !bar.goalMet { return "\(day), \(length) so far" }
+        if isToday { return "\(day), \(length) so far" }
         return "\(day), \(length)\(bar.goalMet ? ", goal met" : "")"
     }
 }

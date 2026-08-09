@@ -66,7 +66,7 @@ struct AdjustTimeSheet: View {
                         .padding(.vertical, 15)
                 }
                 .background(accent, in: .capsule)
-                .foregroundStyle(Theme.backgroundBase)
+                .foregroundStyle(Color.white)
                 .padding(.horizontal)
 
                 if let destructive {
@@ -108,13 +108,13 @@ struct AdjustTimeSheet: View {
     private var selectedTimeHeader: some View {
         VStack(spacing: 4) {
             Text(date, format: .dateTime.weekday(.wide).hour().minute())
-                .font(.ember(30, .bold, relativeTo: .title))
-                .foregroundStyle(Theme.primaryText)
+                .font(.flame(30, .extraBold, relativeTo: .title))
+                .foregroundStyle(Theme.ink)
                 .contentTransition(.numericText())
                 .animation(.snappy, value: date)
             Text(relativeDescription)
                 .font(.subheadline)
-                .foregroundStyle(Theme.secondaryText)
+                .foregroundStyle(Theme.muted)
         }
     }
 
@@ -139,7 +139,7 @@ struct AdjustTimeSheet: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(isActive ? accent.opacity(0.25) : Theme.card, in: .capsule)
-                .foregroundStyle(isActive ? accent : Theme.primaryText)
+                .foregroundStyle(isActive ? accent : Theme.ink)
                 .overlay(
                     Capsule().stroke(isActive ? accent : .clear, lineWidth: 1)
                 )

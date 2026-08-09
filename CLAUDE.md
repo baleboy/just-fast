@@ -34,18 +34,18 @@ The Xcode project uses **file-system-synchronized groups** — new `.swift` file
 
 ## Keep the README screenshot current
 
-`docs/screenshot.png` is the timer tab mid-fast, in **dark mode**, and it is embedded at the top of `README.md`. **Whenever a change alters what that screen looks like** — the ring, the centre text block, the tab bar, the palette — regenerate it as part of the same piece of work, don't leave it for later:
+`docs/screenshot.png` is the timer tab mid-fast, in **light mode** (Flame Friend is a light-first design — the dark palette is derived, so don't lead with it), and it is embedded at the top of `README.md`. **Whenever a change alters what that screen looks like** — the ring, the centre text block, the tab bar, the palette — regenerate it as part of the same piece of work, don't leave it for later:
 
 ```bash
 DEV=$(xcrun simctl list devices available | grep -A20 "iOS 26.5" | grep "iPhone 17 (" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
-xcrun simctl boot "$DEV"; xcrun simctl ui "$DEV" appearance dark
+xcrun simctl boot "$DEV"; xcrun simctl ui "$DEV" appearance light
 # build, install, then:
 xcrun simctl launch "$DEV" com.balenet.fastino -seedDemo   # 10h into a 16h fast
 xcrun simctl io "$DEV" screenshot /tmp/hero.png
-sips -Z 620 /tmp/hero.png --out docs/screenshot.png          # ~140KB with the Ember gradients
+sips -Z 620 /tmp/hero.png --out docs/screenshot.png
 ```
 
-Always look at the result before committing it — a screenshot that silently captured the wrong tab, light mode, or a half-loaded view is worse than a stale one.
+Always look at the result before committing it — a screenshot that silently captured the wrong tab, the wrong appearance, or a half-loaded view is worse than a stale one.
 
 ## Architecture
 
@@ -65,11 +65,11 @@ Keep this layer pure. New stat/validation logic goes here and gets unit tests in
   - `endFast` returns a `FastActionResult` carrying the celebration facts (goal met, new longest fast/streak, current streak) so the UI can decide what to animate.
 
 **3. Surfaces**
-- `Views/` — `RootView` is the three-tab shell (Timer / Stats / Settings) with the custom `EmberTabBar`; all three tabs stay mounted behind each other so switching away doesn't pop `StatsView` → `HistoryView`. Plus `TimerView` (home: `EmberRing` + zone cards + start/end), `StatsView`, `SettingsView`, `HistoryView`, `EditFastView`, `AdjustTimeSheet`.
+- `Views/` — `RootView` is the three-tab shell (Timer / Stats / Settings) with the custom `FlameTabBar`; all three tabs stay mounted behind each other so switching away doesn't pop `StatsView` → `HistoryView`. Plus `TimerView` (home: `FlameRing` + mascot + zone beads + start/end), `StatsView`, `SettingsView`, `HistoryView`, `EditFastView`, `AdjustTimeSheet`.
 - `Intents/FastIntents.swift` — `Start`/`End`/`ToggleFastIntent` + `AppShortcutsProvider`. Only Start/End are App Shortcuts; Siri phrases rely on the `INAlternativeAppNames` aliases in `Info.plist` ("Fasting", "Fast") so `"Start \(.applicationName)"` reads as "start fasting". `ToggleFastIntent` is deliberately *not* an App Shortcut — it stays a Shortcuts-app action and requests confirmation (it's the Back Tap target).
 - `Notifications/NotificationManager.swift` — goal-reached notification (scheduled at start+goal, cancelled on end/edit), the fat-burn/ketosis milestones (12h and 14h, skipped when they'd land at or after the goal), and the start reminder (on by default, suppressed while fasting). Permission is requested lazily, never on launch.
   - The start reminder fires at the user's **start-time anchor** (`startReminderHour`/`Minute`, 20:00 by default) — the same instant the eating window closes. Since the anchor never moves it's a single repeating calendar trigger; `FastStore.reconcileNotifications` only has to arm/cancel it (it's suppressed while a fast runs).
-  - **No `UNUserNotificationCenterDelegate`, on purpose** — that's what makes iOS suppress alerts while the app is open, leaving the in-ring "Goal reached" line + haptic as the app-open cue (§5). Adding one silently changes product behavior.
+  - **No `UNUserNotificationCenterDelegate`, on purpose** — that's what makes iOS suppress alerts while the app is open, leaving the ember burst + green "Log this fast" CTA + haptic as the app-open cue (§5). Adding one silently changes product behavior.
   - `add()` fails silently when permission is denied, so failures are logged and Settings shows a "Notifications are turned off" row; `FastinoApp` re-arms everything on launch and on foreground.
 
 ## Domain rules that are easy to get wrong
@@ -83,12 +83,14 @@ Keep this layer pure. New stat/validation logic goes here and gets unit tests in
 
 ## Design tokens
 
-The UI is the **"Ember"** design system — the fast as a fire burning through metabolic zones. `design_handoff_fastino_ember/` is the handoff it was built from; the approved screens are turn 2 of `Fastino Explorations.dc.html` (2c/2d Timer, 2a/2e Stats, 2b/2f Settings). Apple Health was deliberately skipped — there's no HealthKit integration (§1 non-goals).
+The UI is the **"Flame Friend"** design system — the fast as a little flame you keep alive. `design_handoff_fastino_flame_friend/` is the handoff it was built from; the approved screens are `4a` (timer), `6a` (eating window), `5a` (stats), `5b` (settings), plus `3a` for the motion specs. Everything else in that file is rejected exploration. Apple Health was deliberately skipped — there's no HealthKit integration (§1 non-goals).
 
-- `Design/Theme.swift` — the palette (§5), twice over: dynamic `Color`s for ordinary view code, and numeric `RGBA`/`EmberPalette` values for the ring, which interpolates between zone colours and so can't use an opaque dynamic Color. Plum→black in dark, warm paper in light; the gold→orange→pink heat scale carries the ring bands, the week bars and the primary button; **green is reserved exclusively for success states**. Use tokens, never literal hexes, and don't introduce system blue.
-- `Design/EmberChrome.swift` — `EmberBackground` (the radial glow), `.emberCard()`, `EmberPrimaryButton`, `EmberToggleStyle`, `EmberPressStyle`.
-- `Design/Typography.swift` + `Fastino/Resources/Fonts` — Space Grotesk at 400/600/700, bundled under OFL and registered via `UIAppFonts` in `Info.plist`. Reach for `.ember(_:_:relativeTo:)` (scales with Dynamic Type) or `.emberFixed(_:_:)` where growth would break the layout.
-- `Model/MetabolicZone.swift` — the three bands. Boundaries are **absolute hours (12h, 14h), not fractions of the goal**; a goal that stops short leaves a zone unreachable rather than squeezing it. The ring, the zone cards and the milestone notifications all read from here, so they can't drift apart.
-- `RootView` owns a **custom floating tab bar**, so the three main screens hide their navigation bar and every scroll view pads its bottom by `EmberLayout.tabBarClearance`.
+- `Design/FlameMascot.swift` — **the mascot, and the heart of the direction.** `BlobShape` reimplements CSS elliptical-corner `border-radius` so the silhouette matches the mock exactly rather than approximately; `FlameExpression` is the face. Colour and expression come from context (zone while fasting, intensity on a plan card), never from the mascot itself. The ready-made constructors — `.inZone`, `.pilotLight`, `.lit`, `.unlit` — are how every other screen should reach for it.
+- `Design/Theme.swift` — the palette (§5), twice over: dynamic `Color`s for ordinary view code, and numeric `RGBA`/`FlamePalette` values for the ring and mascot, which interpolate between zone colours and so can't use an opaque dynamic Color. **The handoff is light-only; the dark palette is derived, not designed** — the file says so, keep that note honest. Peach paper, ink #4A2A1E, accent #C9502E; the gold→orange→pink zone scale drives ring, mascot and beads together; **green is reserved exclusively for success states**. Use tokens, never literal hexes, and don't introduce system blue.
+- `Design/FlameChrome.swift` — `FlameBackground` (with the calmer `resting:` variant), `.flameCard()`, `FlamePrimaryButton` + `HardShadowButtonStyle` (the 3D press: cap moves down 3pt, shadow shrinks by the same, so the two always sum to the same height), `FlameToggleStyle`, `SuccessChip`.
+- `Design/Typography.swift` + `Fastino/Resources/Fonts` — Baloo 2 at 600/700/800, bundled under OFL, subset to Latin, registered via `UIAppFonts` in `Info.plist`. Reach for `.flame(_:_:relativeTo:)` (scales with Dynamic Type) or `.flameFixed(_:_:)` where growth would break the layout. 800 is the default for anything that matters; nothing is lighter than 600.
+- `Model/MetabolicZone.swift` — the three bands. Boundaries are **absolute hours (12h, 14h), not fractions of the goal**; a goal that stops short leaves a zone unreachable rather than squeezing it. The ring, the beads, the mascot's face and the milestone notifications all read from here, so they can't drift apart.
+- `RootView` owns a **custom floating tab bar**, so the three main screens hide their navigation bar and every scroll view pads its bottom with `.flameTabBarClearance()`.
+- **Motion lives in `TimerView.ActiveFastContent`** (§5): launch fill 1.8s, ignite 0.9s (triggered by the fast being <2s old on appear), a flash + soft haptic at each zone crossing, and the ember burst plus green "Log this fast" CTA at the goal. All of it is skipped under Reduce Motion.
 
 Celebration cues are ≤1.5s, non-blocking, and fall back to a color fade under Reduce Motion.

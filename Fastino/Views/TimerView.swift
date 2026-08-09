@@ -2,9 +2,9 @@
 //  TimerView.swift
 //  Fastino
 //
-//  The main screen (§4.1): the Ember ring with elapsed/goal time, the three zone
-//  cards that double as the ring's legend, and a single Start fast / End fast
-//  button. Celebration cues per §5.
+//  The main screen (§4.1): the flame mascot inside the zone ring, the zone beads
+//  that double as the ring's legend, and a single Start fast / End fast button.
+//  Motion and celebration cues per §5.
 //
 
 import SwiftUI
@@ -48,13 +48,19 @@ struct TimerView: View {
         )
     }
 
+    /// The most recently closed fast — the eating window's recap card.
+    private var lastClosedFast: FastRecord? {
+        fasts.records
+            .filter { $0.end != nil && $0.end! <= Date() }
+            .max { ($0.end ?? .distantPast) < ($1.end ?? .distantPast) }
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
-            EmberBackground()
-
             VStack(spacing: 0) {
-                Text("FASTINO")
-                    .emberScreenTitle()
+                Text("fastino")
+                    .font(.flame(20, .extraBold, relativeTo: .title3))
+                    .foregroundStyle(Theme.brand)
 
                 if let openFast {
                     ActiveFastContent(
@@ -65,14 +71,16 @@ struct TimerView: View {
                 } else {
                     RestingContent(
                         window: eatingWindow,
+                        lastFast: lastClosedFast,
+                        streak: FastingEngine.currentStreak(fasts.records, now: Date(), timeZone: .current),
                         activeProtocol: activeProtocol,
                         onStart: { showStartSheet = true }
                     )
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.top, EmberLayout.screenTopPadding)
-            .emberTabBarClearance()
+            .padding(.horizontal, FlameLayout.timerHorizontalPadding)
+            .padding(.top, FlameLayout.screenTopPadding)
+            .flameTabBarClearance()
 
             if let banner = recordBanner {
                 RecordBanner(text: banner)
@@ -86,7 +94,7 @@ struct TimerView: View {
             AdjustTimeSheet(
                 title: "Start fast",
                 actionLabel: "Start fast",
-                accent: Theme.accent,
+                accent: Theme.accentText,
                 date: Date()
             ) { date in
                 // Ask for notification permission at the moment it's first useful
@@ -101,7 +109,7 @@ struct TimerView: View {
             AdjustTimeSheet(
                 title: "End fast",
                 actionLabel: "End fast",
-                accent: Theme.accent,
+                accent: Theme.accentText,
                 earliest: openFast?.start,
                 date: Date(),
                 onConfirm: { date in perform { try store.endFast(at: date) } },
@@ -168,6 +176,14 @@ private struct ActiveFastContent: View {
     let reduceMotion: Bool
     let onEnd: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// The launch sweep: the ring fills 0 → current on appear (1.8s ease-out).
+    @State private var fillScale: Double = 0
+    /// 0 → 1 over the life of a flash; parked at 1, where it's invisible.
+    @State private var flashProgress: Double = 1
+    @State private var flashColor: Color = .clear
+    @State private var celebrating = false
     @State private var didCelebrateGoal = false
 
     var body: some View {
@@ -177,52 +193,68 @@ private struct ActiveFastContent: View {
             let elapsed = record.duration(asOf: now)
             let reached = elapsed >= record.goalInterval
             let zone = MetabolicZone.current(elapsed: elapsed)
+            let palette = Theme.palette(for: colorScheme)
 
             VStack(spacing: 0) {
-                RingStack(
-                    content: .fast(goalHours: record.goalHours, elapsed: elapsed),
-                    reduceMotion: reduceMotion
-                ) {
-                    Text("\(record.goalHours)H FAST")
-                        .font(.emberFixed(13, .semibold))
-                        .tracking(2.3)
-                        .foregroundStyle(Theme.secondaryText)
-                    Text(DurationFormat.clock(elapsed))
-                        .font(.emberFixed(44, .bold))
-                        .tracking(-0.9)
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.primaryText)
-                    // Once the goal is behind you its clock time is stale, so the
-                    // celebration takes the slot rather than stacking.
-                    if reached {
-                        Text("Goal reached 🎉")
-                            .font(.emberFixed(13, .semibold))
-                            .foregroundStyle(Theme.success)
-                    } else {
-                        Text("ends \(TimeFormat.endLabel(record.goalReachedAt, now: now))")
-                            .font(.emberFixed(13))
-                            .foregroundStyle(Theme.secondaryText)
-                    }
-                } chip: {
-                    ZoneChip(zone: zone, reduceMotion: reduceMotion)
-                }
+                GeometryReader { geometry in
+                    let diameter = min(geometry.size.width, 310)
+                    ZStack {
+                        FlameRing(
+                            content: .fast(goalHours: record.goalHours, elapsed: elapsed),
+                            diameter: diameter,
+                            fillScale: fillScale
+                        )
 
-                ZoneCards(goalHours: record.goalHours, elapsed: elapsed)
-                    .padding(.top, 34)
+                        RingFlash(color: flashColor, diameter: diameter, progress: flashProgress)
+
+                        if celebrating {
+                            EmberBurst(diameter: diameter, palette: palette)
+                        }
+
+                        VStack(spacing: 6) {
+                            FlameMascot.inZone(zone, palette: palette, height: diameter * (86.0 / 310.0))
+                                .padding(.bottom, 2)
+                            Text(DurationFormat.clock(elapsed))
+                                .font(.flameFixed(40, .extraBold))
+                                .monospacedDigit()
+                                .foregroundStyle(palette.ink.color)
+                            Text("\(record.goalHours)h fast · ends \(TimeFormat.endLabel(record.goalReachedAt, now: now))")
+                                .font(.flameFixed(14))
+                                .foregroundStyle(palette.muted.color)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: diameter * 0.7)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .frame(height: 310)
+                .padding(.top, 40)
+
+                ZoneBeads(goalHours: record.goalHours, elapsed: elapsed)
+                    .padding(.top, 30)
 
                 if elapsed > 48 * 3600 {
                     // §6: gentle prompt for a very long open fast.
                     Text("Still fasting? You can adjust the end time if you forgot to stop the timer.")
-                        .font(.ember(12))
+                        .font(.flame(12.5, .semibold, relativeTo: .caption))
                         .multilineTextAlignment(.center)
-                        .foregroundStyle(Theme.secondaryText)
-                        .padding(.top, 18)
-                        .padding(.horizontal, 12)
+                        .foregroundStyle(palette.muted.color)
+                        .padding(.top, 16)
                 }
 
-                Spacer(minLength: 24)
+                Spacer(minLength: 20)
 
-                EmberPrimaryButton(title: "End fast", action: onEnd)
+                // Past the goal the action stops being "stop early" and starts
+                // being "bank the win", so it turns green and says so.
+                FlamePrimaryButton(
+                    title: reached ? "Log this fast" : "End fast",
+                    celebrating: reached,
+                    action: onEnd
+                )
+            }
+            .onChange(of: zone) { _, newZone in
+                crossZone(into: newZone, palette: palette)
             }
             .onChange(of: reached) { _, isReached in
                 if isReached && !didCelebrateGoal {
@@ -231,64 +263,117 @@ private struct ActiveFastContent: View {
                 }
             }
         }
+        .onAppear(perform: startUp)
+    }
+
+    // MARK: Motion
+
+    /// Two entrances: a fast that was *just* started ignites (an expanding ring
+    /// flash), any other appearance sweeps the fill up from zero.
+    private func startUp() {
+        guard !reduceMotion else {
+            fillScale = 1
+            return
+        }
+        let justStarted = Date().timeIntervalSince(fast.start) < 2
+        if justStarted {
+            fillScale = 0
+            withAnimation(.easeOut(duration: 0.9)) { fillScale = 1 }
+            flash(Theme.palette(for: colorScheme).zones[0].to.color, duration: 0.9)
+        } else {
+            withAnimation(.easeOut(duration: 1.8)) { fillScale = 1 }
+        }
+    }
+
+    private func crossZone(into zone: MetabolicZone, palette: FlamePalette) {
+        guard !reduceMotion else { return }
+        flash(palette.zones[zone.rawValue].to.color, duration: 0.6)
+        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+    }
+
+    private func flash(_ color: Color, duration: Double) {
+        flashColor = color
+        flashProgress = 0
+        withAnimation(.easeOut(duration: duration)) { flashProgress = 1 }
     }
 
     private func celebrateGoal() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         guard !reduceMotion else { return }
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
+        flash(Theme.palette(for: colorScheme).success.color, duration: 1)
+        celebrating = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            celebrating = false
+        }
     }
 }
 
 // MARK: - Between fasts
 
-/// Between fasts the fire is out: the ring goes cold and fills across the eating
-/// window so you can see how long is left before the next fast is due (§4.1).
+/// Between fasts the flame is a pilot light and the ring is just waiting (§4.1).
 /// Copy stays neutral once the window is over — running late is not a failure.
 private struct RestingContent: View {
     let window: EatingWindow?
+    let lastFast: FastRecord?
+    let streak: Int
     let activeProtocol: FastingProtocol
     let onStart: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         TimelineView(.periodic(from: window?.start ?? .now, by: 1)) { context in
             let now = context.date
             let isOver = window?.isOver(asOf: now) ?? true
+            let palette = Theme.palette(for: colorScheme)
 
             VStack(spacing: 0) {
-                RingStack(
-                    content: .resting(progress: window?.progress(asOf: now) ?? 0),
-                    reduceMotion: true
-                ) {
-                    Text(headline(isOver: isOver))
-                        .font(.emberFixed(13, .semibold))
-                        .tracking(2.3)
-                        .foregroundStyle(Theme.secondaryText)
-                    Text(value(now: now))
-                        .font(.emberFixed(44, .bold))
-                        .tracking(-0.9)
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.primaryText)
-                    Text(caption(now: now, isOver: isOver))
-                        .font(.emberFixed(13))
-                        .foregroundStyle(Theme.secondaryText)
-                } chip: {
-                    RestingChip(label: activeProtocol.rawValue + " plan")
+                GeometryReader { geometry in
+                    let diameter = min(geometry.size.width, 310)
+                    ZStack {
+                        FlameRing(content: .waiting, diameter: diameter)
+
+                        VStack(spacing: 6) {
+                            FlameMascot.pilotLight(palette: palette, height: diameter * (68.0 / 310.0))
+                                .padding(.bottom, 2)
+                            Text(headline(isOver: isOver))
+                                .font(.flameFixed(16, .extraBold))
+                                .tracking(0.3)
+                                .foregroundStyle(palette.muted.color)
+                            Text(value(now: now))
+                                .font(.flameFixed(40, .extraBold))
+                                .monospacedDigit()
+                                .foregroundStyle(palette.ink.color)
+                            Text(caption(now: now, isOver: isOver))
+                                .font(.flameFixed(14))
+                                .foregroundStyle(palette.muted.color)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: diameter * 0.72)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .frame(height: 310)
+                .padding(.top, 40)
+
+                if let lastFast {
+                    LastFastCard(fast: lastFast, streak: streak)
+                        .padding(.top, 30)
                 }
 
-                ZoneCards(goalHours: activeProtocol.goalHours, elapsed: 0)
-                    .padding(.top, 34)
+                Spacer(minLength: 20)
 
-                Spacer(minLength: 24)
-
-                EmberPrimaryButton(title: "Start fast", action: onStart)
+                FlamePrimaryButton(title: "Start fast", resting: true, action: onStart)
             }
         }
     }
 
     /// The heading carries the count's direction: unlike the fast's always-rising
     /// elapsed time, this counts *down* to the window's close and *up* again
-    /// afterwards. No "8h" prefix — the window is whatever the anchor leaves, not
+    /// afterwards. No hour count — the window is whatever the anchor leaves, not
     /// a fixed length the user is owed.
     private func headline(isOver: Bool) -> String {
         guard window != nil else { return "READY" }
@@ -296,129 +381,79 @@ private struct RestingContent: View {
     }
 
     private func value(now: Date) -> String {
-        guard let window else { return "\(activeProtocol.goalHours):00:00" }
-        return DurationFormat.clock(abs(window.remaining(asOf: now)))
+        guard let window else { return "\(activeProtocol.goalHours)h fast" }
+        return DurationFormat.hoursMinutes(abs(window.remaining(asOf: now)))
     }
 
     private func caption(now: Date, isOver: Bool) -> String {
-        guard let window else { return "whenever you’re ready" }
+        guard let window else { return "start whenever you’re ready" }
         return isOver
             ? "ready when you are"
-            : "next fast at \(TimeFormat.endLabel(window.end, now: now))"
+            : "until your next fast · \(TimeFormat.endLabel(window.end, now: now))"
     }
 }
 
-// MARK: - Ring + centred stack
-
-/// Ring with its centred text block and chip. The ring shrinks on narrow devices
-/// but the type doesn't, so the centre block stays legible.
-private struct RingStack<Center: View, Chip: View>: View {
-    let content: EmberRing.Content
-    let reduceMotion: Bool
-    @ViewBuilder let center: Center
-    @ViewBuilder let chip: Chip
-
-    var body: some View {
-        GeometryReader { geometry in
-            let diameter = min(geometry.size.width, 312)
-            ZStack {
-                EmberRing(content: content, diameter: diameter)
-                VStack(spacing: 4) {
-                    center
-                    chip.padding(.top, 4)
-                }
-                .frame(maxWidth: diameter * 0.72)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .frame(height: 312)
-        .padding(.top, 48)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.4), value: reduceMotion)
-    }
-}
-
-// MARK: - Zone chip
-
-private struct ZoneChip: View {
-    let zone: MetabolicZone
-    let reduceMotion: Bool
+/// The recap under the waiting ring: what you just did, and what it was worth.
+private struct LastFastCard: View {
+    let fast: FastRecord
+    let streak: Int
 
     @Environment(\.colorScheme) private var colorScheme
-    @State private var flickering = false
 
     var body: some View {
         let palette = Theme.palette(for: colorScheme)
-        HStack(spacing: 7) {
-            Circle()
-                .fill(palette.accent.color)
-                .frame(width: 8, height: 8)
-                .scaleEffect(flickering ? 1.06 : 1)
-                .rotationEffect(.degrees(flickering ? 2 : -2))
-            Text(zone.chipLabel)
-                .font(.emberFixed(12.5, .semibold))
-                .foregroundStyle(palette.accentText.color)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 6)
-        .background(palette.accentChip.color, in: .capsule)
-        .overlay { Capsule().strokeBorder(palette.accent.alpha(0.42).color, lineWidth: 1) }
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                flickering = true
+        HStack {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("LAST FAST")
+                    .flameSectionLabel()
+                Text(summary)
+                    .font(.flame(18, .extraBold, relativeTo: .headline))
+                    .foregroundStyle(palette.ink.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            Spacer(minLength: 10)
+            if streak > 0 {
+                SuccessChip(text: "Streak ×\(streak)")
             }
         }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity)
+        .flameCard()
         .accessibilityElement(children: .combine)
     }
-}
 
-/// Same shape as the zone chip but cold — nothing is burning between fasts.
-private struct RestingChip: View {
-    let label: String
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        let palette = Theme.palette(for: colorScheme)
-        Text(label)
-            .font(.emberFixed(12.5, .semibold))
-            .foregroundStyle(palette.textSecondary.color)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-            .background(palette.mutedFill.color, in: .capsule)
-            .overlay { Capsule().strokeBorder(palette.cardBorder.color, lineWidth: 1) }
+    private var summary: String {
+        let length = DurationFormat.hoursMinutes(fast.finalDuration ?? 0)
+        return fast.isGoalMet ? "\(length) · goal met" : "\(length) · logged"
     }
 }
 
-// MARK: - Zone cards (the ring's legend)
+// MARK: - Zone beads (the ring's legend)
 
-private struct ZoneCards: View {
+private struct ZoneBeads: View {
     let goalHours: Int
     let elapsed: TimeInterval
 
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
-        let current = elapsed > 0 ? MetabolicZone.current(elapsed: elapsed) : nil
-        HStack(spacing: 8) {
+        let current = MetabolicZone.current(elapsed: elapsed)
+        HStack(spacing: 10) {
             ForEach(MetabolicZone.allCases) { zone in
-                ZoneCard(
-                    zone: zone,
-                    state: state(of: zone, current: current)
-                )
+                ZoneBead(zone: zone, state: state(of: zone, current: current))
             }
         }
     }
 
-    private func state(of zone: MetabolicZone, current: MetabolicZone?) -> ZoneCard.State {
+    private func state(of zone: MetabolicZone, current: MetabolicZone) -> ZoneBead.State {
         guard zone.isReachable(withGoalHours: goalHours) else { return .unreachable }
-        guard let current else { return .ahead }
         if zone == current { return .active }
-        return zone.rawValue < current.rawValue ? .done : .ahead
+        return zone.rawValue < current.rawValue ? .done : .upcoming
     }
 }
 
-private struct ZoneCard: View {
-    enum State { case done, active, ahead, unreachable }
+private struct ZoneBead: View {
+    enum State { case done, active, upcoming, unreachable }
 
     let zone: MetabolicZone
     let state: State
@@ -427,47 +462,99 @@ private struct ZoneCard: View {
 
     var body: some View {
         let palette = Theme.palette(for: colorScheme)
-        let zoneColor = palette.zones[zone.rawValue].label.color
-
-        VStack(spacing: 3) {
-            Text(zone.rangeLabel)
-                .font(.emberFixed(11))
-                .tracking(0.9)
-                .foregroundStyle(state == .ahead || state == .unreachable
-                                 ? palette.textTertiary.color
-                                 : palette.textSecondary.color)
-            Text(state == .done ? "\(zone.name) ✓" : zone.name)
-                .font(.emberFixed(12.5, .bold))
-                .foregroundStyle(titleColor(palette, zoneColor: zoneColor))
+        HStack(spacing: 6) {
+            Circle()
+                .fill(dotColor(palette))
+                .frame(width: 10, height: 10)
+            Text(label)
+                .font(.flame(12.5, state == .active ? .extraBold : .bold, relativeTo: .caption))
+                .foregroundStyle(state == .active ? palette.accentText.color : palette.mutedFlameInk.color)
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .minimumScaleFactor(0.7)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 11)
-        .padding(.horizontal, 4)
-        .emberCard(
-            radius: Radius.smallCard,
-            fill: state == .active ? palette.accent.alpha(colorScheme == .dark ? 0.12 : 0.08).color : nil,
-            border: borderColor(palette, zoneColor: zoneColor),
-            glow: state == .active ? palette.accent.alpha(0.25).color : nil
-        )
-        .opacity(state == .unreachable ? 0.45 : 1)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background {
+            if state == .active {
+                Capsule().fill(palette.accentSurface.color)
+                    .overlay { Capsule().strokeBorder(palette.accentBorder.color, lineWidth: 2) }
+            } else {
+                Capsule().fill(palette.card.color)
+                    .shadow(color: palette.cardShadow.color, radius: 5, y: 3)
+            }
+        }
+        .opacity(state == .active || state == .done ? 1 : 0.55)
+        .animation(.snappy(duration: 0.3), value: state)
         .accessibilityElement(children: .combine)
     }
 
-    private func titleColor(_ palette: EmberPalette, zoneColor: Color) -> Color {
+    private var label: String {
         switch state {
-        case .done, .active: zoneColor
-        case .ahead, .unreachable: palette.textSecondary.color
+        case .done: "\(zone.name) ✓"
+        case .active: "\(zone.name)!"
+        case .upcoming, .unreachable: zone.name
         }
     }
 
-    private func borderColor(_ palette: EmberPalette, zoneColor: Color) -> Color? {
+    private func dotColor(_ palette: FlamePalette) -> Color {
         switch state {
-        case .active: palette.accent.color
-        case .done: palette.zones[zone.rawValue].label.alpha(0.45).color
-        case .ahead, .unreachable: nil
+        case .done, .active: palette.zones[zone.rawValue].dot.color
+        case .upcoming, .unreachable: palette.plainFlame.color
         }
+    }
+}
+
+// MARK: - Completion celebration (§5)
+
+/// Rising embers, staggered, ~2s. Purely decorative and skipped under Reduce
+/// Motion by the caller.
+private struct EmberBurst: View {
+    let diameter: CGFloat
+    let palette: FlamePalette
+
+    private let count = 10
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<count, id: \.self) { index in
+                Ember(
+                    index: index,
+                    count: count,
+                    diameter: diameter,
+                    color: palette.zones[index % palette.zones.count].to.color
+                )
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+private struct Ember: View {
+    let index: Int
+    let count: Int
+    let diameter: CGFloat
+    let color: Color
+
+    @State private var risen = false
+
+    /// Spread across the ring's width, each one a slightly different size and
+    /// delay so the burst doesn't read as a single row.
+    private var offsetX: CGFloat {
+        let spread = diameter * 0.42
+        return spread * (CGFloat(index) / CGFloat(count - 1) - 0.5) * 2
+    }
+    private var size: CGFloat { diameter * (index.isMultiple(of: 3) ? 0.05 : 0.035) }
+    private var delay: Double { Double(index) * 0.09 }
+
+    var body: some View {
+        BlobShape.body
+            .fill(color)
+            .frame(width: size * 0.86, height: size)
+            .offset(x: offsetX, y: risen ? -diameter * 0.55 : diameter * 0.2)
+            .opacity(risen ? 0 : 0.9)
+            .onAppear {
+                withAnimation(.easeOut(duration: 1.4).delay(delay)) { risen = true }
+            }
     }
 }
 
@@ -475,15 +562,18 @@ private struct ZoneCard: View {
 
 private struct RecordBanner: View {
     let text: String
+
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        let palette = Theme.palette(for: colorScheme)
         Text(text)
-            .font(.ember(13, .bold, relativeTo: .footnote))
-            .foregroundStyle(colorScheme == .dark ? Color(hex: 0x12241E) : .white)
+            .font(.flame(14, .extraBold, relativeTo: .footnote))
+            .foregroundStyle(palette.success.color)
             .padding(.horizontal, 18)
             .padding(.vertical, 10)
-            .background(Theme.success, in: .capsule)
+            .background(palette.successSurface.color, in: .capsule)
+            .shadow(color: palette.cardShadow.color, radius: 8, y: 4)
     }
 }
 

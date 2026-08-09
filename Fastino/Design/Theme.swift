@@ -2,16 +2,21 @@
 //  Theme.swift
 //  Fastino
 //
-//  Design tokens (§5) for the "Ember" system: the fast reads as a fire burning
-//  through metabolic zones. Deep plum-to-black in dark, warm paper in light, and
-//  a gold→orange→pink heat scale that both the ring and the stats bars share.
+//  Design tokens (§5) for the "Flame Friend" system: warm, cute, peach-toned,
+//  built around a little flame mascot who changes colour and expression with the
+//  metabolic zone.
 //
 //  Two ways to reach a token:
 //  • `Theme.something` — a dynamic `Color` that resolves itself per trait, for
 //    ordinary view code.
 //  • `Theme.palette(for: colorScheme)` — the same values as *numbers* (`RGBA`),
-//    which is what the ring needs: it interpolates between zone colours to place
-//    the elapsed/remaining split mid-band, and you can't lerp a dynamic Color.
+//    which is what the ring and the mascot need: they interpolate between zone
+//    colours, and you can't lerp an opaque dynamic Color.
+//
+//  **The handoff specifies light only.** The dark palette below is derived, not
+//  designed: the same hues over a deep cocoa ground, with the mascot and the
+//  accents untouched so the character reads identically in both. Treat it as a
+//  placeholder a designer may want to correct.
 //
 
 import SwiftUI
@@ -20,7 +25,7 @@ import UIKit
 // MARK: - Numeric colour
 
 /// A colour we can do arithmetic on. `Color` is opaque and a *dynamic* Color has
-/// no single value at all, so the ring's gradient maths works on these instead.
+/// no single value at all, so the ring and mascot maths work on these instead.
 nonisolated struct RGBA: Equatable, Sendable {
     var r: Double
     var g: Double
@@ -68,109 +73,138 @@ extension Color {
 
 // MARK: - Zone palette
 
-/// The colours of one metabolic band. `from`/`to` are the ends of the gradient
-/// *inside* the band on the ring; `label` is the flat colour used for text.
+/// The colours of one metabolic band, shared by the ring, the mascot and the
+/// zone beads so they can never disagree.
 nonisolated struct ZonePalette: Equatable, Sendable {
+    /// Ends of the gradient inside the band (also the mascot's body gradient).
     let from: RGBA
     let to: RGBA
-    let label: RGBA
+    /// The band's colour once you're past it but not in it — the ring's unreached
+    /// segments and the "upcoming" bead dot.
+    let dimmed: RGBA
+    /// Flat colour for the bead dot when the zone is done.
+    let dot: RGBA
 }
 
 // MARK: - Full palette
 
-nonisolated struct EmberPalette: Equatable, Sendable {
-    /// Three stops of the screen's radial gradient, centre → edge.
+nonisolated struct FlamePalette: Equatable, Sendable {
+    /// Two stops of the screen's vertical gradient, top → bottom.
     let backgroundStops: [RGBA]
+    /// Calmer variant used by the eating-window screen.
+    let restingBackgroundStops: [RGBA]
 
-    let textPrimary: RGBA
-    let textSecondary: RGBA
-    let textTertiary: RGBA
-
-    let cardBackground: RGBA
-    let cardBorder: RGBA
-    let cardSeparator: RGBA
-    /// Drop shadow under cards. Transparent in dark, where cards separate by
-    /// their own translucent fill instead.
-    let cardShadow: RGBA
-
-    let accent: RGBA
-    /// Accent tuned for text on the screen background — the raw accent doesn't
-    /// carry enough contrast at small sizes in either mode.
+    /// Headings and numbers.
+    let ink: RGBA
+    /// Body copy and row labels.
+    let body: RGBA
+    /// Captions and secondary values.
+    let muted: RGBA
+    /// The lowercase "fastino" wordmark.
+    let brand: RGBA
+    /// Accent text — the one colour that says "this is the live thing".
     let accentText: RGBA
-    let accentChip: RGBA
-    /// The soft halo that makes a highlighted card look lit from within.
-    let accentGlow: RGBA
+
+    let card: RGBA
+    let cardShadow: RGBA
+    /// Peach surface behind a selected card, bead or tab chip.
+    let accentSurface: RGBA
+    /// 2.5pt border around a selected card.
+    let accentBorder: RGBA
+    /// Ink used on top of `accentSurface` (the goal-rate card).
+    let onAccentSurface: RGBA
+    /// Dashed row dividers inside grouped cards.
+    let divider: RGBA
 
     let success: RGBA
+    let successSurface: RGBA
 
-    /// Left→right gradient for the primary button and for gradient-filled numerals.
-    let heatGradient: [RGBA]
-    /// Fill for a "missed day" bar and for an off toggle.
-    let mutedFill: RGBA
-    /// Knob of an off toggle.
-    let mutedKnob: RGBA
+    /// The primary button: gradient top → bottom, plus the hard 3D press shadow.
+    let buttonGradient: [RGBA]
+    let buttonShadow: RGBA
+    /// Softer variant used on the eating-window screen.
+    let restingButtonGradient: [RGBA]
+    let restingButtonShadow: RGBA
+
+    /// Unlit mascot fill (with a face) and the ink used on it.
+    let mutedFlame: RGBA
+    let mutedFlameInk: RGBA
+    /// Unlit mascot fill with no face — the missed days in the week strip.
+    let plainFlame: RGBA
+    /// The dashed circle of the waiting ring.
+    let waitingRing: RGBA
+    /// Off state of a toggle.
+    let toggleOff: RGBA
 
     /// Gold, orange, pink — index-aligned with `MetabolicZone.allCases`.
     let zones: [ZonePalette]
-    /// Alpha the not-yet-reached part of the ring fades to, at the start and end
-    /// of a band.
-    let zoneDimAlpha: (low: Double, high: Double)
 
-    static func == (lhs: EmberPalette, rhs: EmberPalette) -> Bool {
-        lhs.accent == rhs.accent && lhs.textPrimary == rhs.textPrimary
-    }
-
-    static let dark = EmberPalette(
-        backgroundStops: [RGBA(0x2A1A3E), RGBA(0x181022), RGBA(0x120B1A)],
-        textPrimary: RGBA(0xF3ECFF),
-        textSecondary: RGBA(0xF3ECFF, 0.55),
-        textTertiary: RGBA(0xF3ECFF, 0.4),
-        cardBackground: RGBA(0xFFFFFF, 0.05),
-        cardBorder: RGBA(0xFFFFFF, 0.12),
-        cardSeparator: RGBA(0xFFFFFF, 0.08),
-        cardShadow: RGBA(0x000000, 0),
-        accent: RGBA(0xFF8A3D),
-        accentText: RGBA(0xFFBE8F),
-        accentChip: RGBA(0xFF8A3D, 0.16),
-        accentGlow: RGBA(0xFF8A3D, 0.3),
-        success: RGBA(0x7FE8C3),
-        heatGradient: [RGBA(0xFFD066), RGBA(0xFF8A3D)],
-        mutedFill: RGBA(0xFFFFFF, 0.1),
-        mutedKnob: RGBA(0xFFFFFF, 0.6),
+    static let light = FlamePalette(
+        backgroundStops: [RGBA(0xFFF3E4), RGBA(0xFFE8D1)],
+        restingBackgroundStops: [RGBA(0xFFF8EF), RGBA(0xFDEEDE)],
+        ink: RGBA(0x4A2A1E),
+        body: RGBA(0x5A3A2E),
+        muted: RGBA(0xB07A5A),
+        brand: RGBA(0xC96F4A),
+        accentText: RGBA(0xC9502E),
+        card: RGBA(0xFFFFFF),
+        cardShadow: RGBA(0xC96F4A, 0.12),
+        accentSurface: RGBA(0xFFE0C2),
+        accentBorder: RGBA(0xFF9E7D),
+        onAccentSurface: RGBA(0xA8623E),
+        divider: RGBA(0xFFE8D1),
+        success: RGBA(0x2A8A6B),
+        successSurface: RGBA(0xE3F5EC),
+        buttonGradient: [RGBA(0xFF9E7D), RGBA(0xF27A52)],
+        buttonShadow: RGBA(0xD95F3A),
+        restingButtonGradient: [RGBA(0xFFB36B), RGBA(0xF2905C)],
+        restingButtonShadow: RGBA(0xD97A42),
+        mutedFlame: RGBA(0xE8CDB8),
+        mutedFlameInk: RGBA(0x8A5A42),
+        plainFlame: RGBA(0xD9B8A5),
+        waitingRing: RGBA(0xF3DDC8),
+        toggleOff: RGBA(0xE8D5C5),
         zones: [
-            ZonePalette(from: RGBA(0xFFE9A0), to: RGBA(0xFFC24D), label: RGBA(0xFFD066)),
-            ZonePalette(from: RGBA(0xFF9A3D), to: RGBA(0xFF7A2E), label: RGBA(0xFF8A3D)),
-            ZonePalette(from: RGBA(0xFF5470), to: RGBA(0xFF4468), label: RGBA(0xFF7089)),
-        ],
-        zoneDimAlpha: (0.16, 0.32)
+            ZonePalette(from: RGBA(0xFFD88A), to: RGBA(0xFFB36B), dimmed: RGBA(0xFFEBD2), dot: RGBA(0xFFD88A)),
+            ZonePalette(from: RGBA(0xFF9068), to: RGBA(0xFF7D52), dimmed: RGBA(0xFFD9C2), dot: RGBA(0xFF8A5C)),
+            ZonePalette(from: RGBA(0xF78AA8), to: RGBA(0xF06B92), dimmed: RGBA(0xF7C3CF), dot: RGBA(0xF78AA8)),
+        ]
     )
 
-    static let light = EmberPalette(
-        backgroundStops: [RGBA(0xFDF3E3), RGBA(0xF8F1E8), RGBA(0xF3ECE2)],
-        textPrimary: RGBA(0x2A1A3E),
-        textSecondary: RGBA(0x2A1A3E, 0.5),
-        textTertiary: RGBA(0x2A1A3E, 0.35),
-        cardBackground: RGBA(0xFFFFFF),
-        cardBorder: RGBA(0x2A1A3E, 0.1),
-        cardSeparator: RGBA(0x2A1A3E, 0.08),
-        cardShadow: RGBA(0x2A1A3E, 0.05),
-        accent: RGBA(0xFF8F2E),
-        accentText: RGBA(0xC1500F),
-        accentChip: RGBA(0xFF6F1E, 0.1),
-        accentGlow: RGBA(0xFF8C3C, 0.25),
-        success: RGBA(0x1F8A63),
-        heatGradient: [RGBA(0xE0870F), RGBA(0xFF6F1E)],
-        mutedFill: RGBA(0x2A1A3E, 0.08),
-        mutedKnob: RGBA(0xFFFFFF),
+    /// Derived, not designed — see the file header.
+    static let dark = FlamePalette(
+        backgroundStops: [RGBA(0x36221A), RGBA(0x281811)],
+        restingBackgroundStops: [RGBA(0x2F1E17), RGBA(0x22140F)],
+        ink: RGBA(0xFFF0E0),
+        body: RGBA(0xEFD9C7),
+        muted: RGBA(0xB9927A),
+        brand: RGBA(0xFFAE86),
+        accentText: RGBA(0xFF9E7D),
+        card: RGBA(0x452B20),
+        cardShadow: RGBA(0x000000, 0.35),
+        accentSurface: RGBA(0x5A3020),
+        accentBorder: RGBA(0xFF9E7D),
+        onAccentSurface: RGBA(0xFFC9A5),
+        divider: RGBA(0x593628),
+        success: RGBA(0x6FD8B0),
+        successSurface: RGBA(0x1E4438),
+        buttonGradient: [RGBA(0xFF9E7D), RGBA(0xF27A52)],
+        buttonShadow: RGBA(0x9E3F22),
+        restingButtonGradient: [RGBA(0xFFB36B), RGBA(0xF2905C)],
+        restingButtonShadow: RGBA(0xA85A2A),
+        mutedFlame: RGBA(0x5E3D2C),
+        mutedFlameInk: RGBA(0xC5A085),
+        plainFlame: RGBA(0x543527),
+        waitingRing: RGBA(0x4C2E22),
+        toggleOff: RGBA(0x5A3B2C),
         zones: [
-            ZonePalette(from: RGBA(0xFFD98A), to: RGBA(0xFFB23D), label: RGBA(0xD98A12)),
-            ZonePalette(from: RGBA(0xFF8F2E), to: RGBA(0xFF6F1E), label: RGBA(0xE0570F)),
-            ZonePalette(from: RGBA(0xFF5470), to: RGBA(0xFF4468), label: RGBA(0xD63A5C)),
-        ],
-        zoneDimAlpha: (0.22, 0.36)
+            ZonePalette(from: RGBA(0xFFD88A), to: RGBA(0xFFB36B), dimmed: RGBA(0x513425), dot: RGBA(0xFFD88A)),
+            ZonePalette(from: RGBA(0xFF9068), to: RGBA(0xFF7D52), dimmed: RGBA(0x5A3122), dot: RGBA(0xFF8A5C)),
+            ZonePalette(from: RGBA(0xF78AA8), to: RGBA(0xF06B92), dimmed: RGBA(0x532834), dot: RGBA(0xF78AA8)),
+        ]
     )
 
-    static func of(_ scheme: ColorScheme) -> EmberPalette {
+    static func of(_ scheme: ColorScheme) -> FlamePalette {
         scheme == .dark ? .dark : .light
     }
 }
@@ -178,42 +212,43 @@ nonisolated struct EmberPalette: Equatable, Sendable {
 // MARK: - Dynamic tokens
 
 enum Theme {
-    static func palette(for scheme: ColorScheme) -> EmberPalette { .of(scheme) }
+    static func palette(for scheme: ColorScheme) -> FlamePalette { .of(scheme) }
 
-    /// Flat fallback behind the radial gradient — also what `.background` needs
+    /// Flat fallback behind the screen gradient, and what `.background` needs
     /// when a colour rather than a view is required.
     static let backgroundBase = dynamic(\.backgroundStops[1])
 
-    static let primaryText = dynamic(\.textPrimary)
-    static let secondaryText = dynamic(\.textSecondary)
-    static let tertiaryText = dynamic(\.textTertiary)
-
-    static let card = dynamic(\.cardBackground)
-    static let cardBorder = dynamic(\.cardBorder)
-    static let cardSeparator = dynamic(\.cardSeparator)
-    static let cardShadow = dynamic(\.cardShadow)
-
-    static let accent = dynamic(\.accent)
+    static let ink = dynamic(\.ink)
+    static let body = dynamic(\.body)
+    static let muted = dynamic(\.muted)
+    static let brand = dynamic(\.brand)
     static let accentText = dynamic(\.accentText)
-    static let accentChip = dynamic(\.accentChip)
-    static let accentGlow = dynamic(\.accentGlow)
+
+    static let card = dynamic(\.card)
+    static let cardShadow = dynamic(\.cardShadow)
+    static let accentSurface = dynamic(\.accentSurface)
+    static let accentBorder = dynamic(\.accentBorder)
+    static let onAccentSurface = dynamic(\.onAccentSurface)
+    static let divider = dynamic(\.divider)
 
     /// Success only (§5) — never decoration.
     static let success = dynamic(\.success)
+    static let successSurface = dynamic(\.successSurface)
 
-    static let mutedFill = dynamic(\.mutedFill)
+    static let mutedFlame = dynamic(\.mutedFlame)
 
-    static func heatGradient(_ scheme: ColorScheme) -> LinearGradient {
-        LinearGradient(
-            colors: EmberPalette.of(scheme).heatGradient.map(\.color),
-            startPoint: .leading,
-            endPoint: .trailing
+    static func buttonGradient(_ scheme: ColorScheme, resting: Bool = false) -> LinearGradient {
+        let palette = FlamePalette.of(scheme)
+        return LinearGradient(
+            colors: (resting ? palette.restingButtonGradient : palette.buttonGradient).map(\.color),
+            startPoint: .top,
+            endPoint: .bottom
         )
     }
 
-    private static func dynamic(_ keyPath: KeyPath<EmberPalette, RGBA>) -> Color {
+    private static func dynamic(_ keyPath: KeyPath<FlamePalette, RGBA>) -> Color {
         Color(uiColor: UIColor { traits in
-            let palette = EmberPalette.of(traits.userInterfaceStyle == .dark ? .dark : .light)
+            let palette = FlamePalette.of(traits.userInterfaceStyle == .dark ? .dark : .light)
             return UIColor(palette[keyPath: keyPath].color)
         })
     }
@@ -222,7 +257,8 @@ enum Theme {
 // MARK: - Radii & shape
 
 enum Radius {
-    static let card: CGFloat = 20
-    static let smallCard: CGFloat = 16
-    static let planCard: CGFloat = 18
+    static let card: CGFloat = 24
+    static let row: CGFloat = 22
+    static let smallCard: CGFloat = 20
+    static let button: CGFloat = 26
 }
