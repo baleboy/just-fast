@@ -138,6 +138,7 @@ No Live Activities — by decision: the system ends a Live Activity after 8 hour
 
 ## 7. Architecture notes
 
+- **Portrait only**, iPhone and iPad. The screens are one tall column each — a ring stack, a bento, a settings list — and the design was drawn at 402×874; nothing here gains from a landscape variant.
 - SwiftUI throughout; iOS 26 / watchOS 26 minimum (free app, no legacy-support pressure; adopt current widget & Live Activity APIs without fallbacks).
 - Targets: iOS app, watchOS app, Widget extension, shared Swift package for model + streak/stat engine.
 - The streak/stat engine is a pure function of `[Fast]` + time zone — unit-test it exhaustively (midnight spans, TZ shifts, overlaps, edits).
