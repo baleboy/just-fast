@@ -13,7 +13,10 @@ import UIKit
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var settingsList: [AppSettings]
+    // Sorted to agree with SettingsElection while duplicates exist — an
+    // unsorted @Query has no defined order, so two views could read different
+    // rows on the same launch.
+    @Query(sort: \AppSettings.updatedAt, order: .reverse) private var settingsList: [AppSettings]
 
     var body: some View {
         Group {
@@ -43,6 +46,7 @@ private struct SettingsForm: View {
     /// A plan tapped while a fast is running — held until the user confirms that
     /// it won't touch the fast in progress.
     @State private var pendingProtocol: FastingProtocol?
+    @Environment(CloudSyncStatus.self) private var syncStatus
 
     private var isFasting: Bool { fasts.contains(where: \.isOpen) }
 
@@ -70,6 +74,11 @@ private struct SettingsForm: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Settings")
                     .flameScreenTitle()
+
+                // Above the fold, like the notifications warning: "your fasts
+                // aren't reaching your other devices" isn't a footnote.
+                syncStatusRow
+                    .padding(.top, 16)
 
                 GroupLabel("YOUR FAST PLAN")
                     .padding(.top, 20)
@@ -124,6 +133,14 @@ private struct SettingsForm: View {
         .onChange(of: settings.goalNotificationEnabled) { syncFastNotifications() }
         .onChange(of: settings.milestoneNotificationsEnabled) { syncFastNotifications() }
         .onChange(of: settings.appearanceID) { try? modelContext.save() }
+        // These bind straight to the model with @Bindable, bypassing FastStore,
+        // so stamp updatedAt here — it's what SettingsElection orders by when
+        // sync leaves duplicate rows. The snapshot excludes updatedAt, so this
+        // can't re-trigger itself.
+        .onChange(of: settings.snapshot) {
+            settings.touch()
+            try? modelContext.save()
+        }
         .task { await refreshAlertStatus() }
         // Re-check on return from iOS Settings, where the user may have just
         // flipped permission on or off.
@@ -225,6 +242,22 @@ private struct SettingsForm: View {
             .buttonStyle(FlamePressStyle())
             .disabled(fasts.isEmpty)
             .opacity(fasts.isEmpty ? 0.5 : 1)
+        }
+    }
+
+    /// Shown only once sync has actually been observed failing, so the app never
+    /// implies data is reaching the user's other devices when it isn't — and
+    /// never cries wolf while mirroring is still starting up (§3).
+    @ViewBuilder
+    private var syncStatusRow: some View {
+        if case .unavailable(let reason) = syncStatus.health {
+            CardGroup {
+                // No trailing chevron: there's nothing here to tap, and the fix
+                // is in iOS Settings rather than anywhere Fastino can send you.
+                SettingsRow(title: "iCloud sync is off", subtitle: reason, isLast: true) {
+                    EmptyView()
+                }
+            }
         }
     }
 

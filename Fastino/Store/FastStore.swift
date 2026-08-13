@@ -57,16 +57,34 @@ struct FastStore {
         allFasts().first(where: \.isOpen)
     }
 
-    /// Fetch the settings object, creating it on first use.
+    /// Fetch the settings object, creating it on first use and collapsing the
+    /// duplicates CloudKit can leave behind (see `AppSettings`).
     func settings() -> AppSettings {
         let descriptor = FetchDescriptor<AppSettings>()
-        if let existing = try? context.fetch(descriptor).first {
-            return existing
+        let existing = (try? context.fetch(descriptor)) ?? []
+
+        switch existing.count {
+        case 0:
+            let created = AppSettings()
+            context.insert(created)
+            try? context.save()
+            return created
+        case 1:
+            // The steady state — no election, so the hot path costs what it always did.
+            return existing[0]
+        default:
+            guard let winner = SettingsElection.survivor(among: existing.map(\.identity)),
+                  let survivor = existing.first(where: { $0.id == winner.id })
+            else { return existing[0] }
+
+            for loser in existing where loser.id != winner.id {
+                context.delete(loser)
+            }
+            // Both devices race to delete the same losers; deleting an
+            // already-deleted record is a no-op, so the operation is idempotent.
+            try? context.save()
+            return survivor
         }
-        let created = AppSettings()
-        context.insert(created)
-        try? context.save()
-        return created
     }
 
     // MARK: Writes

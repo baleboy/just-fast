@@ -16,7 +16,7 @@ struct TimerView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Query(sort: \Fast.start, order: .reverse) private var fasts: [Fast]
-    @Query private var settingsList: [AppSettings]
+    @Query(sort: \AppSettings.updatedAt, order: .reverse) private var settingsList: [AppSettings]
 
     @State private var showStartSheet = false
     @State private var showEndSheet = false

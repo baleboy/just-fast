@@ -5,29 +5,59 @@
 //  The shared SwiftData ModelContainer, used by the app and by App Intents so
 //  every surface writes through the same store (§4.6, §7).
 //
-//  CloudKit note: the spec calls for CloudKit private-database sync (§3). That
-//  requires a real iCloud container id declared in Fastino.entitlements
-//  (`iCloud.com.balenet.fastino`) and matching provisioning. To keep the app
-//  buildable and launchable everywhere out of the box, persistence defaults to
-//  local-only (`.none`). Flip `cloudKitDatabase` to `.automatic` and fill in the
-//  entitlement's container identifier to enable sync — the schema is already
-//  CloudKit-compatible (all attributes defaulted, no unique constraints).
+//  CloudKit (§3): the store mirrors to the CloudKit *private* database so the
+//  iPhone and the watch share one dataset (§4.7). The container is named
+//  explicitly rather than using `.automatic` — `.automatic` picks the first
+//  container in the entitlement, so an app signed with the wrong profile would
+//  silently sync to a *different* database and never converge. Naming it means
+//  a provisioning mistake fails here, loudly, where we can log it.
+//
+//  If mirroring can't be set up at all (empty/unprovisioned
+//  `com.apple.developer.icloud-container-identifiers`, or a schema CloudKit
+//  rejects) we fall back to a local-only store rather than trapping, so the app
+//  still runs on a machine without the container. Note that a signed-out or
+//  offline *user* is not this case: the container initialises fine and
+//  mirroring simply retries later.
 //
 
 import Foundation
+import OSLog
 import SwiftData
 
 enum AppContainer {
     static let schema = Schema([Fast.self, AppSettings.self])
 
+    /// The private-database container backing sync. Must match the value in
+    /// both Fastino.entitlements and the watch app's entitlements exactly.
+    static let cloudKitContainerID = "iCloud.com.balenet.fastino"
+
+    private static let log = Logger(subsystem: "com.balenet.fastino", category: "AppContainer")
+
+    /// True when the store opened with mirroring requested.
+    ///
+    /// Deliberately *not* named "sync is working": `ModelContainer.init` returns
+    /// successfully even when the container is unprovisioned, because mirroring
+    /// is set up asynchronously afterwards. Real sync health arrives later, via
+    /// `CloudSyncStatus`. This flag only means "we didn't fall back to local".
+    private(set) static var isCloudKitConfigured = false
+
     static let shared: ModelContainer = {
-        let configuration = ModelConfiguration(
+        let cloudKit = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: false,
-            cloudKitDatabase: .none // → .automatic to enable CloudKit sync
+            cloudKitDatabase: .private(cloudKitContainerID)
         )
         do {
-            return try ModelContainer(for: schema, configurations: [configuration])
+            let container = try ModelContainer(for: schema, configurations: [cloudKit])
+            isCloudKitConfigured = true
+            return container
+        } catch {
+            log.error("CloudKit mirroring unavailable, falling back to a local store: \(error)")
+        }
+
+        let local = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        do {
+            return try ModelContainer(for: schema, configurations: [local])
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }

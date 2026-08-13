@@ -2,9 +2,15 @@
 //  AppSettings.swift
 //  Fastino
 //
-//  The single settings object (§3). Stored via SwiftData. The start-reminder
-//  wall-clock time is stored as hour/minute Ints rather than DateComponents so
-//  it round-trips cleanly through SwiftData + CloudKit.
+//  The settings object (§3). Stored via SwiftData. The start-reminder wall-clock
+//  time is stored as hour/minute Ints rather than DateComponents so it
+//  round-trips cleanly through SwiftData + CloudKit.
+//
+//  "Singleton" is a convention here, not a constraint — CloudKit forbids unique
+//  constraints, so two devices that first launch offline each create a row and
+//  sync keeps both. `id` + `updatedAt` exist to resolve that: see
+//  `elect(from:)`, which every device runs to pick the same survivor from the
+//  same data. Both are defaulted, so they stay CloudKit-compatible.
 //
 
 import Foundation
@@ -12,6 +18,9 @@ import SwiftData
 
 @Model
 final class AppSettings {
+    var id: UUID = UUID()
+    /// Bumped by `touch()` on every user edit; drives `elect(from:)`.
+    var updatedAt: Date = Date()
     var activeProtocolID: String = FastingProtocol.p168.rawValue
     var startReminderEnabled: Bool = true
     var startReminderHour: Int = 20
@@ -22,6 +31,8 @@ final class AppSettings {
     var appearanceID: String = Appearance.system.rawValue
 
     init(
+        id: UUID = UUID(),
+        updatedAt: Date = Date(),
         activeProtocolID: String = FastingProtocol.p168.rawValue,
         startReminderEnabled: Bool = true,
         startReminderHour: Int = 20,
@@ -30,6 +41,8 @@ final class AppSettings {
         milestoneNotificationsEnabled: Bool = true,
         appearanceID: String = Appearance.system.rawValue
     ) {
+        self.id = id
+        self.updatedAt = updatedAt
         self.activeProtocolID = activeProtocolID
         self.startReminderEnabled = startReminderEnabled
         self.startReminderHour = startReminderHour
@@ -51,5 +64,66 @@ final class AppSettings {
 
     var startReminderComponents: DateComponents {
         DateComponents(hour: startReminderHour, minute: startReminderMinute)
+    }
+
+    /// Record a user edit. Views bind to this object directly with `@Bindable`,
+    /// bypassing `FastStore`, so they must call this for `elect(from:)` to have
+    /// anything to order by.
+    func touch(at date: Date = Date()) {
+        updatedAt = date
+    }
+
+    var identity: SettingsIdentity { SettingsIdentity(id: id, updatedAt: updatedAt) }
+
+    /// Every user-editable field, and deliberately *not* `updatedAt` — views
+    /// watch this to know when to `touch()`, so including the timestamp would
+    /// make the observation re-trigger itself.
+    var snapshot: SettingsSnapshot {
+        SettingsSnapshot(
+            activeProtocolID: activeProtocolID,
+            startReminderEnabled: startReminderEnabled,
+            startReminderHour: startReminderHour,
+            startReminderMinute: startReminderMinute,
+            goalNotificationEnabled: goalNotificationEnabled,
+            milestoneNotificationsEnabled: milestoneNotificationsEnabled,
+            appearanceID: appearanceID
+        )
+    }
+}
+
+nonisolated struct SettingsSnapshot: Equatable, Sendable {
+    let activeProtocolID: String
+    let startReminderEnabled: Bool
+    let startReminderHour: Int
+    let startReminderMinute: Int
+    let goalNotificationEnabled: Bool
+    let milestoneNotificationsEnabled: Bool
+    let appearanceID: String
+}
+
+/// The subset of `AppSettings` the election needs — pulled out so the rule is a
+/// pure function testable without a `ModelContainer`.
+nonisolated struct SettingsIdentity: Equatable, Sendable {
+    let id: UUID
+    let updatedAt: Date
+}
+
+nonisolated enum SettingsElection {
+    /// Pick the row that survives when sync leaves more than one.
+    ///
+    /// Newest `updatedAt` wins; ties break on the lowest `id` string. Both rules
+    /// are functions of the replicated data alone, so every device independently
+    /// reaches the same answer — which is what makes the dedupe converge instead
+    /// of two devices deleting each other's survivor forever.
+    ///
+    /// Last-writer-wins on the whole object, deliberately: merging seven
+    /// independent toggles field-by-field would produce a settings state neither
+    /// user ever chose.
+    static func survivor(among candidates: [SettingsIdentity]) -> SettingsIdentity? {
+        candidates.max { a, b in
+            a.updatedAt == b.updatedAt
+                ? a.id.uuidString > b.id.uuidString
+                : a.updatedAt < b.updatedAt
+        }
     }
 }

@@ -12,16 +12,26 @@ import SwiftData
 struct FastinoApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Owned here, not by SettingsView: CloudKit mirroring reports success or
+    /// failure within a second or so of the store opening, so an observer that
+    /// waits for Settings to appear misses the event entirely.
+    @State private var syncStatus = CloudSyncStatus()
+
     var body: some Scene {
         WindowGroup {
             RootView()
+                .environment(syncStatus)
                 .task {
+                    syncStatus.start()
                     DemoSeeder.seedIfNeeded(context: AppContainer.shared.mainContext)
                     reconcileNotifications()
+                    await syncStatus.refreshAccountStatus()
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
                     reconcileNotifications()
+                    // The user may have just signed in to iCloud and come back.
+                    Task { await syncStatus.refreshAccountStatus() }
                 }
         }
         .modelContainer(AppContainer.shared)

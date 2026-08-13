@@ -41,10 +41,18 @@ struct RootView: View {
     /// override has to sit above everything so every tab — and the window's own
     /// background — picks it up. `nil` (no settings row yet, first launch)
     /// means "follow the system", same as `.system`.
-    @Query private var settingsList: [AppSettings]
+    @Query(sort: \AppSettings.updatedAt, order: .reverse) private var settingsList: [AppSettings]
     @Query(sort: \Fast.start, order: .reverse) private var fasts: [Fast]
 
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selection: FlameTab = .initial
+    @State private var reconciler = SyncReconciler()
+
+    /// The condition SyncReconciler exists to fix. Watching the count means the
+    /// @Query republish that follows a CloudKit merge is the trigger — SwiftData
+    /// vends no remote-change callback of its own.
+    private var openFastCount: Int { fasts.count(where: \.isOpen) }
 
     private var preferredScheme: ColorScheme? {
         settingsList.first?.appearance.colorScheme
@@ -71,6 +79,26 @@ struct RootView: View {
         }
         .tint(Theme.accentText)
         .preferredColorScheme(preferredScheme)
+        .onChange(of: openFastCount, initial: true) { _, count in
+            reconciler.openFastCountChanged(to: count, context: modelContext)
+        }
+        // Belt and braces: catches a merge that landed while we were suspended,
+        // where the @Query republish may already have happened unobserved.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            reconciler.openFastCountChanged(to: openFastCount, context: modelContext)
+        }
+        .alert(
+            "Fasts merged",
+            isPresented: Binding(
+                get: { reconciler.notice != nil },
+                set: { if !$0 { reconciler.notice = nil } }
+            )
+        ) {
+            Button("OK") { reconciler.notice = nil }
+        } message: {
+            Text(reconciler.notice ?? "")
+        }
     }
 
     /// Keeps every tab mounted; only the selected one is visible and tappable.

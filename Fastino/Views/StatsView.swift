@@ -12,7 +12,7 @@ import SwiftData
 
 struct StatsView: View {
     @Query(sort: \Fast.start, order: .reverse) private var fasts: [Fast]
-    @Query private var settingsList: [AppSettings]
+    @Query(sort: \AppSettings.updatedAt, order: .reverse) private var settingsList: [AppSettings]
 
     /// The goal the flames are measured against: the running fast's snapshotted
     /// goal while one is open, otherwise the plan currently selected.
