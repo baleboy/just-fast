@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- UIAppFonts is the one key with no INFOPLIST_KEY_ build-setting
+	     equivalent, so the watch target needs a real plist to register Baloo 2.
+	     The faces themselves come from Shared/Resources/Fonts via folder
+	     membership. A face that fails to register falls back to the system font
+	     silently, with no error — so check the first run visually. -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>Baloo2-SemiBold.ttf</string>
+		<string>Baloo2-Bold.ttf</string>
+		<string>Baloo2-ExtraBold.ttf</string>
+	</array>
+</dict>
+</plist>

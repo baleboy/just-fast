@@ -104,24 +104,56 @@ work. Toggle stays a Shortcuts-app action for Back Tap.
 
 ## Deferred (need additional Xcode targets — not added here)
 
-These require new build targets in `project.pbxproj` (an App Extension and a
-watchOS app), which can't be added reliably by editing the file by hand or
-verified headlessly. The shared engine and App Intents are already structured
-for reuse by them:
+These require new build targets in `project.pbxproj`, which can't be added
+reliably by editing the file by hand or verified headlessly.
 
 1. **Widget extension (§4.5)** — Lock Screen circular/rectangular + Home Screen
    widgets using `Text(timerInterval:)` and the interactive Start intent. Add a
-   Widget Extension target, share the model/engine files + App Intents with it.
-2. **watchOS app + complications (§4.7)** — mirror of the main screen; add a
-   watchOS App target sharing the same store.
-3. **CloudKit live sync (§3)** — the schema is already CloudKit-ready. To enable:
-   set a real container id in `Fastino.entitlements`
-   (`iCloud.com.balenet.fastino`) and flip `cloudKitDatabase: .none` →
-   `.automatic` in `Store/AppContainer.swift`. Left local-only so the app runs
-   without an iCloud container / provisioning.
+   Widget Extension target and tick `Shared/` for it.
+2. **Watch complications / Smart Stack (§4.7)** — a separate widget-extension
+   target for watchOS. Deferred with the iOS widget above, for the same reason.
 
-Recommended next step is to extract `Model/` + `Engine/` into a shared Swift
-package (as §7 envisions) so all four targets link one copy.
+**CloudKit live sync (§3) is now on**, since the watch can only share a store
+with the phone through it — app groups don't cross the iPhone/Watch boundary.
+See "Sync" below.
+
+## Sync (§3, §6)
+
+`Store/AppContainer.swift` mirrors to the CloudKit private database, naming the
+container explicitly rather than using `.automatic` (which picks the first
+container in the entitlement, so a mis-provisioned build would sync to a
+different database and silently never converge). It falls back to a local store
+rather than trapping when mirroring can't be configured at all.
+
+Two invariants the app relied on don't survive sync, and both are handled in
+`Shared/Sync/` with pure, unit-tested rules (`FastinoTests/SyncMergeTests.swift`):
+
+- **`AppSettings` is a singleton by convention only** — CloudKit forbids unique
+  constraints, so two devices first launched offline each create a row.
+  `SettingsElection` picks the same survivor on every device (newest
+  `updatedAt`, ties on lowest `id`); `FastStore.settings()` deletes the losers.
+  Views must query it **sorted** — an unsorted `@Query` has no defined order, so
+  two screens could otherwise read different rows on the same launch.
+- **Two devices can each start a fast offline.** `OpenFastMerge` implements §6's
+  "later start wins, other closed at that instant", plus two cases §6 doesn't
+  cover: identical starts (closing at the winner's start gives `end == start`,
+  which `FastValidation` rejects) and fasts abandoned beyond the 7-day cap.
+  `SyncReconciler` applies it after a settle delay, because CloudKit delivers in
+  batches and a device can import a `start` before the matching `end` for the
+  *same* fast — acting immediately would truncate an already-closed fast.
+
+`CloudSyncStatus` reports whether sync actually works. Note that
+`ModelContainer.init` **succeeds even when the container is unprovisioned** —
+mirroring is configured asynchronously afterwards — so a launch-time flag proves
+nothing. It watches `NSPersistentCloudKitContainer.eventChangedNotification`
+and the iCloud account status instead, from app launch rather than when Settings
+appears (mirroring fails within a second of the store opening, so a later
+observer misses the event).
+
+Extracting `Shared/` into a Swift package (as §7 envisions) is still possible
+but was judged not worth it yet: the targets set
+`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` and the code leans on it, so a
+package means replicating that default and making ~1,900 lines `public`.
 
 ## Running
 

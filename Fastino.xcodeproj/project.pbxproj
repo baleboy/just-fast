@@ -53,14 +53,14 @@
 			path = FastinoTests;
 			sourceTree = "<group>";
 		};
-		58B22FD03019DCC300633020 /* Shared */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Shared;
-			sourceTree = "<group>";
-		};
 		58B22FB63019DCC300633020 /* FastinoUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = FastinoUITests;
+			sourceTree = "<group>";
+		};
+		58B22FD03019DCC300633020 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */

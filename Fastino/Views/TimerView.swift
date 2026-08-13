@@ -288,7 +288,7 @@ private struct ActiveFastContent: View {
     private func crossZone(into zone: MetabolicZone, palette: FlamePalette) {
         guard !reduceMotion else { return }
         flash(palette.zones[zone.rawValue].to.color, duration: 0.6)
-        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+        Haptics.soft()
     }
 
     private func flash(_ color: Color, duration: Double) {
@@ -298,7 +298,7 @@ private struct ActiveFastContent: View {
     }
 
     private func celebrateGoal() {
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.success()
         guard !reduceMotion else { return }
         flash(Theme.palette(for: colorScheme).success.color, duration: 1)
         celebrating = true

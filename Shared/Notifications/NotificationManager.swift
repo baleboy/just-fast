@@ -35,12 +35,18 @@ final class NotificationManager {
 
     @discardableResult
     func requestAuthorization() async -> Bool {
+        #if os(watchOS)
+        // The watch never schedules anything (see `add`), so asking would be a
+        // permission prompt in exchange for nothing.
+        return false
+        #else
         do {
             return try await center.requestAuthorization(options: [.alert, .sound])
         } catch {
             log.error("Authorization request failed: \(error.localizedDescription, privacy: .public)")
             return false
         }
+        #endif
     }
 
     /// True when iOS will not present our alerts — permission was denied, or
@@ -64,13 +70,27 @@ final class NotificationManager {
     /// Schedule, logging failures instead of dropping them. `add` fails silently
     /// when permission is denied, which is exactly the case that used to leave
     /// the app permanently and invisibly mute.
+    ///
+    /// On watchOS this is a deliberate no-op: iOS forwards the phone's
+    /// notifications to the watch, and there is no API to opt a local
+    /// notification out of forwarding — identifiers are namespaced per device,
+    /// so matching ids don't dedupe. If both devices scheduled the same goal
+    /// alert the user would simply get it twice. The phone owns scheduling;
+    /// cancelling stays live on both so a watch-side end still clears whatever
+    /// that device had. FastinoApp re-arms on launch and on every foreground,
+    /// so a fast started on the watch gets its notifications the moment the
+    /// phone is next opened.
     private func add(_ request: UNNotificationRequest) {
+        #if os(watchOS)
+        return
+        #else
         let identifier = request.identifier
         center.add(request) { [log] error in
             if let error {
                 log.error("Could not schedule \(identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
         }
+        #endif
     }
 
     // MARK: Goal reached (§4.4)

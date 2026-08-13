@@ -20,7 +20,9 @@
 //
 
 import SwiftUI
+#if canImport(UIKit) && !os(watchOS)
 import UIKit
+#endif
 
 // MARK: - Numeric colour
 
@@ -286,10 +288,17 @@ enum Theme {
     }
 
     private static func dynamic(_ keyPath: KeyPath<FlamePalette, RGBA>) -> Color {
+        #if os(watchOS)
+        // watchOS has no light appearance, and no UITraitCollection to resolve
+        // against — so the "cozy campfire night" palette resolves statically.
+        // Appearance in Settings is an iOS-only control by the same logic.
+        FlamePalette.of(.dark)[keyPath: keyPath].color
+        #else
         Color(uiColor: UIColor { traits in
             let palette = FlamePalette.of(traits.userInterfaceStyle == .dark ? .dark : .light)
             return UIColor(palette[keyPath: keyPath].color)
         })
+        #endif
     }
 }
 

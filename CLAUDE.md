@@ -30,7 +30,7 @@ Launch with `-seedDemo` (DEBUG only) to populate a streak plus an active fast fo
 
 Only the iOS 26.5 simulator runtime satisfies the 26.4 deployment target — installing on the iOS 26.1 devices fails.
 
-The Xcode project uses **file-system-synchronized groups** — new `.swift` files under `Fastino/` are picked up automatically; no `project.pbxproj` edits needed.
+The Xcode project uses **file-system-synchronized groups** — new `.swift` files are picked up automatically; no `project.pbxproj` edits needed. **Which folder you put a file in decides which platforms build it**: `Shared/` compiles into the iOS app *and* the watch app, `Fastino/` is iOS-only. Put anything that touches UIKit, the tab bar, or a full-size screen in `Fastino/`; put model/engine/store/design code in `Shared/`. The split is by folder rather than by membership exceptions precisely so the default for a new file is correct.
 
 ## Keep the README screenshot current
 
@@ -51,6 +51,8 @@ Always look at the result before committing it — a screenshot that silently ca
 
 Three layers, deliberately separated so the logic is testable and reusable by the deferred widget/watch targets:
 
+Paths below are relative to `Shared/` unless they start with `Fastino/`.
+
 **1. Pure core — no SwiftData, no globals, no I/O**
 - `Model/FastRecord.swift` — `Sendable` value snapshot of a fast (id/start/end/goalHours). Everything analytical operates on `[FastRecord]`, never on `@Model` objects.
 - `Engine/FastingEngine.swift` — streaks, goal days, 7-day strip, 30-day averages. Every function is a pure function of `[FastRecord]` + `now` + `TimeZone`.
@@ -60,15 +62,18 @@ Keep this layer pure. New stat/validation logic goes here and gets unit tests in
 
 **2. Persistence + the single write path**
 - `Model/Fast.swift`, `Model/AppSettings.swift` — SwiftData `@Model`s. **Every attribute must have a default and there are no unique constraints** — this keeps the schema CloudKit-compatible. Preserve that when adding fields.
-- `Store/AppContainer.swift` — the shared `ModelContainer` (plus `inMemory()` for previews/tests). `cloudKitDatabase` is `.none`; flipping it to `.automatic` + setting a real container id in `Fastino.entitlements` enables sync.
+- `Store/AppContainer.swift` — the shared `ModelContainer` (plus `inMemory()` for previews/tests). Mirrors to the CloudKit private database, naming `iCloud.com.balenet.fastino` explicitly rather than using `.automatic` — see `Sync/` below and IMPLEMENTATION.md.
+- `Sync/` — the two rules CloudKit forces on us: `OpenFastMerge` (two devices each start a fast offline) and `SettingsElection` in `Model/AppSettings.swift` (duplicate settings rows). Both pure and unit-tested; `SyncReconciler` applies the merge, `CloudSyncStatus` reports whether sync actually works.
 - `Store/FastStore.swift` — **the only place fasts are mutated.** UI, App Intents, and the future widget/watch targets all go through `startFast`/`endFast`/`toggle`/`addManual`/`update`/`delete`. Each method validates, saves, reconciles notifications, and calls `WidgetCenter.reloadAllTimelines()`. Never write to a `Fast` from a view or an intent directly — add a method here instead.
   - `endFast` returns a `FastActionResult` carrying the celebration facts (goal met, new longest fast/streak, current streak) so the UI can decide what to animate.
 
 **3. Surfaces**
-- `Views/` — `RootView` is the three-tab shell (Timer / Stats / Settings) with the custom `FlameTabBar`; all three tabs stay mounted behind each other so switching away doesn't pop `StatsView` → `HistoryView`. Plus `TimerView` (home: `FlameRing` + mascot + zone beads + start/end), `StatsView`, `SettingsView`, `HistoryView`, `EditFastView`, `AdjustTimeSheet`.
-- `Intents/FastIntents.swift` — `Start`/`End`/`ToggleFastIntent` + `AppShortcutsProvider`. Only Start/End are App Shortcuts; Siri phrases rely on the `INAlternativeAppNames` aliases in `Info.plist` ("Fasting", "Fast") so `"Start \(.applicationName)"` reads as "start fasting". `ToggleFastIntent` is deliberately *not* an App Shortcut — it stays a Shortcuts-app action and requests confirmation (it's the Back Tap target).
+- `Fastino/Views/` — `RootView` is the three-tab shell (Timer / Stats / Settings) with the custom `FlameTabBar`; all three tabs stay mounted behind each other so switching away doesn't pop `StatsView` → `HistoryView`. Plus `TimerView` (home: `FlameRing` + mascot + zone beads + start/end), `StatsView`, `SettingsView`, `HistoryView`, `EditFastView`, `AdjustTimeSheet`.
+- `Fastino Watch App/WatchTimerView.swift` — the entire watch app (§4.7): ring, mascot, elapsed time, zone, one button. No stats, no settings — the watch *reads* the plan and never writes it. It reuses `FlameRing`/`FlameMascot` by passing a smaller size rather than reimplementing them, and uses `Text(timerInterval:)` for the digits so Always-On stays correct without a per-second timeline.
+- `Fastino/Intents/FastIntents.swift` — `Start`/`End`/`ToggleFastIntent` + `AppShortcutsProvider`. Only Start/End are App Shortcuts; Siri phrases rely on the `INAlternativeAppNames` aliases in `Info.plist` ("Fasting", "Fast") so `"Start \(.applicationName)"` reads as "start fasting". `ToggleFastIntent` is deliberately *not* an App Shortcut — it stays a Shortcuts-app action and requests confirmation (it's the Back Tap target).
 - `Notifications/NotificationManager.swift` — goal-reached notification (scheduled at start+goal, cancelled on end/edit), the fat-burn/ketosis milestones (12h and 14h, skipped when they'd land at or after the goal), and the start reminder (on by default, suppressed while fasting). Permission is requested lazily, never on launch.
   - The start reminder fires at the user's **start-time anchor** (`startReminderHour`/`Minute`, 20:00 by default) — the same instant the eating window closes. Since the anchor never moves it's a single repeating calendar trigger; `FastStore.reconcileNotifications` only has to arm/cancel it (it's suppressed while a fast runs).
+  - **The watch schedules nothing** — `add()` is a no-op there. iOS forwards the phone's notifications to the watch and there's no API to opt a local notification out of forwarding (identifiers are per-device, so matching ids don't dedupe), so scheduling on both would simply double every alert. Cancelling stays live on both. `FastinoApp` re-arms on launch and foreground, so a watch-started fast gets its notifications when the phone is next opened; the accepted gap is a phone left away right through the goal.
   - **No `UNUserNotificationCenterDelegate`, on purpose** — that's what makes iOS suppress alerts while the app is open, leaving the ember burst + green "Log this fast" CTA + haptic as the app-open cue (§5). Adding one silently changes product behavior.
   - `add()` fails silently when permission is denied, so failures are logged and Settings shows a "Notifications are turned off" row; `FastinoApp` re-arms everything on launch and on foreground.
 
@@ -92,6 +97,8 @@ The UI is the **"Flame Friend"** design system — the fast as a little flame yo
 - `Model/MetabolicZone.swift` — the three bands. Boundaries are **absolute hours (12h, 14h), not fractions of the goal**; a goal that stops short leaves a zone unreachable rather than squeezing it. The ring, the beads, the mascot's face and the milestone notifications all read from here, so they can't drift apart.
 - `RootView` owns a **custom floating tab bar**, so the three main screens hide their navigation bar and every scroll view pads its bottom with `.flameTabBarClearance()`.
 - **The Stats week strip is a bar histogram, not a row of mascots.** It was flames briefly and the design moved back: bar height carries a quantity (fast length against goal), and the mascot is for mood. Don't re-cute it.
+- **Haptics go through `Support/Haptics.swift`**, never `UIImpactFeedbackGenerator` directly — the watch needs `WKInterfaceDevice`. Watch haptics only play when the app is frontmost and on-wrist, so never make a cue the user needs depend on one landing.
+- **`Theme.dynamic` resolves statically to the dark palette on watchOS** — there's no light appearance and no `UITraitCollection` there. Appearance in Settings is iOS-only by the same logic; don't "fix" it.
 - **Motion lives in `TimerView.ActiveFastContent`** (§5): launch fill 1.8s, ignite 0.9s (triggered by the fast being <2s old on appear), a flash + soft haptic at each zone crossing, and the ember burst plus green "Log this fast" CTA at the goal. All of it is skipped under Reduce Motion.
 
 Celebration cues are ≤1.5s, non-blocking, and fall back to a color fade under Reduce Motion.
