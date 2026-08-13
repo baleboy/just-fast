@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**Fastino** — a free, minimal iOS intermittent-fasting tracker. SwiftUI + SwiftData, iOS 26.4 minimum, Xcode 26.x. Bundle id `com.balenet.fastino`.
+**Fastino** — a free, minimal iOS intermittent-fasting tracker. SwiftUI + SwiftData, iOS 26.4 minimum, Xcode 26.x. Bundle id `com.baleware.fastino`.
 
 Two documents drive the work and are the source of truth; keep them current:
 - `specification.md` — product & technical spec. Source files reference its sections (`§2`, `§4.6`, …) in their header comments; keep those references accurate when editing.
@@ -40,7 +40,7 @@ The Xcode project uses **file-system-synchronized groups** — new `.swift` file
 DEV=$(xcrun simctl list devices available | grep -A20 "iOS 26.5" | grep "iPhone 17 (" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
 xcrun simctl boot "$DEV"; xcrun simctl ui "$DEV" appearance light
 # build, install, then:
-xcrun simctl launch "$DEV" com.balenet.fastino -seedDemo   # 10h into a 16h fast
+xcrun simctl launch "$DEV" com.baleware.fastino -seedDemo   # 10h into a 16h fast
 xcrun simctl io "$DEV" screenshot /tmp/hero.png
 sips -Z 620 /tmp/hero.png --out docs/screenshot.png
 ```
@@ -62,7 +62,7 @@ Keep this layer pure. New stat/validation logic goes here and gets unit tests in
 
 **2. Persistence + the single write path**
 - `Model/Fast.swift`, `Model/AppSettings.swift` — SwiftData `@Model`s. **Every attribute must have a default and there are no unique constraints** — this keeps the schema CloudKit-compatible. Preserve that when adding fields.
-- `Store/AppContainer.swift` — the shared `ModelContainer` (plus `inMemory()` for previews/tests). Mirrors to the CloudKit private database, naming `iCloud.com.balenet.fastino` explicitly rather than using `.automatic` — see `Sync/` below and IMPLEMENTATION.md.
+- `Store/AppContainer.swift` — the shared `ModelContainer` (plus `inMemory()` for previews/tests). Mirrors to the CloudKit private database, naming `iCloud.com.baleware.fastino` explicitly rather than using `.automatic` — see `Sync/` below and IMPLEMENTATION.md.
 - `Sync/` — the two rules CloudKit forces on us: `OpenFastMerge` (two devices each start a fast offline) and `SettingsElection` in `Model/AppSettings.swift` (duplicate settings rows). Both pure and unit-tested; `SyncReconciler` applies the merge, `CloudSyncStatus` reports whether sync actually works.
 - `Store/FastStore.swift` — **the only place fasts are mutated.** UI, App Intents, and the future widget/watch targets all go through `startFast`/`endFast`/`toggle`/`addManual`/`update`/`delete`. Each method validates, saves, reconciles notifications, and calls `WidgetCenter.reloadAllTimelines()`. Never write to a `Fast` from a view or an intent directly — add a method here instead.
   - `endFast` returns a `FastActionResult` carrying the celebration facts (goal met, new longest fast/streak, current streak) so the UI can decide what to animate.

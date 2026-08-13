@@ -23,7 +23,7 @@ final class NotificationManager {
     private init() {}
 
     private let center = UNUserNotificationCenter.current()
-    private let log = Logger(subsystem: "com.balenet.fastino", category: "notifications")
+    private let log = Logger(subsystem: "com.baleware.fastino", category: "notifications")
 
     private static let startReminderID = "start-reminder"
     private static func goalID(_ fastID: UUID) -> String { "goal-\(fastID.uuidString)" }

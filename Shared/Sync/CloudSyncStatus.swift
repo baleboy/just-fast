@@ -46,7 +46,7 @@ final class CloudSyncStatus {
     /// and this is only ever written once from the main actor in `start()`.
     @ObservationIgnored
     private nonisolated(unsafe) var observer: (any NSObjectProtocol)?
-    private let log = Logger(subsystem: "com.balenet.fastino", category: "CloudSync")
+    private let log = Logger(subsystem: "com.baleware.fastino", category: "CloudSync")
 
     /// Re-check the iCloud account. Cheap, and worth repeating on foreground —
     /// the user may have just signed in (or out) in iOS Settings.

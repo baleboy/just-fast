@@ -29,9 +29,9 @@ enum AppContainer {
 
     /// The private-database container backing sync. Must match the value in
     /// both Fastino.entitlements and the watch app's entitlements exactly.
-    static let cloudKitContainerID = "iCloud.com.balenet.fastino"
+    static let cloudKitContainerID = "iCloud.com.baleware.fastino"
 
-    private static let log = Logger(subsystem: "com.balenet.fastino", category: "AppContainer")
+    private static let log = Logger(subsystem: "com.baleware.fastino", category: "AppContainer")
 
     /// True when the store opened with mirroring requested.
     ///
