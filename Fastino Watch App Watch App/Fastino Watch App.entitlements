@@ -2,11 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>aps-environment</key>
-	<string>development</string>
-	<!-- MUST be byte-identical to Fastino.entitlements. A watch pointed at a
-	     different container syncs to a different database: both apps appear to
-	     work, and they never converge. -->
+	<!-- No aps-environment: the Push Notifications capability isn't enabled on
+	     this App ID, and an entitlement declared here but absent from the App ID
+	     fails signing outright. Sync still works without it — CloudKit just
+	     can't wake the app in the background, so changes land when the app is
+	     next foregrounded. Add both together if that becomes worth it. -->
+	<!-- The container MUST match Fastino.entitlements exactly. A watch pointed
+	     at a different container syncs to a different database: both apps appear
+	     to work, and they never converge. -->
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
 		<string>iCloud.com.baleware.fastino</string>
