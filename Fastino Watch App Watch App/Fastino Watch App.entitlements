@@ -2,11 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- No aps-environment: the Push Notifications capability isn't enabled on
-	     this App ID, and an entitlement declared here but absent from the App ID
-	     fails signing outright. Sync still works without it — CloudKit just
-	     can't wake the app in the background, so changes land when the app is
-	     next foregrounded. Add both together if that becomes worth it. -->
+	<!-- Not for our own notifications — the watch deliberately schedules none
+	     (see NotificationManager.add). This is what lets CloudKit wake the app
+	     with a silent push when the phone changes something, so a fast started
+	     on one device reaches the other without waiting to be opened. -->
+	<key>aps-environment</key>
+	<string>development</string>
 	<!-- The container MUST match Fastino.entitlements exactly. A watch pointed
 	     at a different container syncs to a different database: both apps appear
 	     to work, and they never converge. -->
