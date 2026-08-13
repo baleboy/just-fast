@@ -33,6 +33,12 @@ struct FlameRing: View {
 
     /// The mock masks at 78%/79% of the ring's radius — a ~32pt stroke at 310.
     private var thickness: CGFloat { diameter * 0.5 * 0.215 }
+
+    /// The diameter of the hole, for callers laying content out inside the ring.
+    /// Content sized against `diameter` will overlap the band.
+    static func innerDiameter(for diameter: CGFloat) -> CGFloat {
+        diameter - 2 * (diameter * 0.5 * 0.215)
+    }
     private var dotSize: CGFloat { diameter * (32.0 / 310.0) }
 
     var body: some View {

@@ -16,6 +16,12 @@ Two documents drive the work and are the source of truth; keep them current:
 # Build
 xcodebuild build -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone 17'
 
+# Watch app. The target name really is doubled — the wizard appended "Watch App"
+# to a product name already ending in it. Only the target name is affected; the
+# bundle is com.baleware.fastino.watchkitapp and it displays as "Fastino Watch App".
+xcodebuild build -scheme 'Fastino Watch App Watch App' \
+  -destination 'platform=watchOS Simulator,name=Apple Watch Series 11 (42mm)'
+
 # Unit tests (swift-testing)
 xcodebuild test -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:FastinoTests
 
@@ -28,7 +34,9 @@ xcodebuild test -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone
 
 Launch with `-seedDemo` (DEBUG only) to populate a streak plus an active fast for screenshots; `-seedEating` seeds the between-fasts state instead. `-tab stats` / `-tab settings` (DEBUG only) opens straight onto another tab — the custom tab bar can't be tapped from `simctl`, so this is how the other screens get screenshotted.
 
-Only the iOS 26.5 simulator runtime satisfies the 26.4 deployment target — installing on the iOS 26.1 devices fails.
+Only the iOS 26.5 simulator runtime satisfies the 26.4 deployment target — installing on the iOS 26.1 devices fails. Same on the watch: the target is watchOS 26.5, so only the **watchOS 26.5** simulators work.
+
+`simctl` can't tap, so the watch's *active* fast state is unreachable on a booted watch sim — the `#Preview`s at the bottom of `WatchTimerView.swift` are how it gets looked at (via Xcode, or the `RenderPreview` MCP tool).
 
 The Xcode project uses **file-system-synchronized groups** — new `.swift` files are picked up automatically; no `project.pbxproj` edits needed. **Which folder you put a file in decides which platforms build it**: `Shared/` compiles into the iOS app *and* the watch app, `Fastino/` is iOS-only. Put anything that touches UIKit, the tab bar, or a full-size screen in `Fastino/`; put model/engine/store/design code in `Shared/`. The split is by folder rather than by membership exceptions precisely so the default for a new file is correct.
 
@@ -69,7 +77,7 @@ Keep this layer pure. New stat/validation logic goes here and gets unit tests in
 
 **3. Surfaces**
 - `Fastino/Views/` — `RootView` is the three-tab shell (Timer / Stats / Settings) with the custom `FlameTabBar`; all three tabs stay mounted behind each other so switching away doesn't pop `StatsView` → `HistoryView`. Plus `TimerView` (home: `FlameRing` + mascot + zone beads + start/end), `StatsView`, `SettingsView`, `HistoryView`, `EditFastView`, `AdjustTimeSheet`.
-- `Fastino Watch App/WatchTimerView.swift` — the entire watch app (§4.7): ring, mascot, elapsed time, zone, one button. No stats, no settings — the watch *reads* the plan and never writes it. It reuses `FlameRing`/`FlameMascot` by passing a smaller size rather than reimplementing them, and uses `Text(timerInterval:)` for the digits so Always-On stays correct without a per-second timeline.
+- `Fastino Watch App Watch App/WatchTimerView.swift` — the entire watch app (§4.7): ring, mascot, elapsed time, zone, one button. No stats, no settings — the watch *reads* the plan and never writes it. It reuses `FlameRing`/`FlameMascot` by passing a smaller size rather than reimplementing them, and uses `Text(timerInterval:)` for the digits so Always-On stays correct without a per-second timeline.
 - `Fastino/Intents/FastIntents.swift` — `Start`/`End`/`ToggleFastIntent` + `AppShortcutsProvider`. Only Start/End are App Shortcuts; Siri phrases rely on the `INAlternativeAppNames` aliases in `Info.plist` ("Fasting", "Fast") so `"Start \(.applicationName)"` reads as "start fasting". `ToggleFastIntent` is deliberately *not* an App Shortcut — it stays a Shortcuts-app action and requests confirmation (it's the Back Tap target).
 - `Notifications/NotificationManager.swift` — goal-reached notification (scheduled at start+goal, cancelled on end/edit), the fat-burn/ketosis milestones (12h and 14h, skipped when they'd land at or after the goal), and the start reminder (on by default, suppressed while fasting). Permission is requested lazily, never on launch.
   - The start reminder fires at the user's **start-time anchor** (`startReminderHour`/`Minute`, 20:00 by default) — the same instant the eating window closes. Since the anchor never moves it's a single repeating calendar trigger; `FastStore.reconcileNotifications` only has to arm/cancel it (it's suppressed while a fast runs).

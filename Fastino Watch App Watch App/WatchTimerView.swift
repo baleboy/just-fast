@@ -86,20 +86,30 @@ struct WatchTimerView: View {
             ZStack {
                 FlameRing(content: .fast(goalHours: record.goalHours, elapsed: elapsed), diameter: size)
                 VStack(spacing: 2) {
+                    // No tip: `inZone` draws it *above* the declared height, so
+                    // at this scale it crosses the ring band. The tip is a
+                    // flourish for the 310pt phone ring, not load-bearing.
                     FlameMascot.inZone(
                         zone,
                         palette: Theme.palette(for: .dark),
-                        height: size * 0.26,
+                        height: size * 0.22,
+                        showsTip: false,
                         bobDuration: reduceMotion ? nil : 3
                     )
                     Text(timerInterval: record.start...Date.distantFuture, countsDown: false)
                         .font(.flameFixed(19, .extraBold))
                         .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
                         .foregroundStyle(Theme.ink)
                     Text(zone.name)
                         .font(.flameFixed(11, .semibold))
+                        .lineLimit(1)
                         .foregroundStyle(Theme.muted)
                 }
+                // Wide enough for the digits, which sit at the ring's widest
+                // point; the inscribed square would be far too narrow here.
+                .frame(width: FlameRing.innerDiameter(for: size) * 0.94)
             }
             .frame(width: size, height: size)
             .onChange(of: zone) { _, _ in Haptics.soft() }
@@ -118,6 +128,7 @@ struct WatchTimerView: View {
                     .font(.flameFixed(11, .semibold))
                     .foregroundStyle(Theme.muted)
             }
+            .frame(width: FlameRing.innerDiameter(for: size) * 0.94)
         }
         .frame(width: size, height: size)
     }
@@ -154,4 +165,37 @@ struct WatchTimerView: View {
             errorMessage = error.localizedDescription
         }
     }
+}
+
+// MARK: - Previews
+
+// simctl can't tap, so the active state is unreachable on a booted watch sim —
+// these are how it gets looked at.
+
+@MainActor
+private func previewContainer(openFastHoursAgo: Double?) -> ModelContainer {
+    let container = AppContainer.inMemory()
+    let context = container.mainContext
+    context.insert(AppSettings())
+    if let hours = openFastHoursAgo {
+        context.insert(Fast(
+            start: Date().addingTimeInterval(-hours * 3600),
+            goalHours: 16,
+            protocolID: FastingProtocol.p168.rawValue,
+            createdVia: .watch
+        ))
+    }
+    return container
+}
+
+#Preview("Fasting — ketosis") {
+    WatchTimerView().modelContainer(previewContainer(openFastHoursAgo: 15))
+}
+
+#Preview("Fasting — burning") {
+    WatchTimerView().modelContainer(previewContainer(openFastHoursAgo: 3))
+}
+
+#Preview("Ready") {
+    WatchTimerView().modelContainer(previewContainer(openFastHoursAgo: nil))
 }

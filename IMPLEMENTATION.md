@@ -113,6 +113,19 @@ reliably by editing the file by hand or verified headlessly.
 2. **Watch complications / Smart Stack (§4.7)** — a separate widget-extension
    target for watchOS. Deferred with the iOS widget above, for the same reason.
 
+## Built: the watchOS app (§4.7)
+
+Target `Fastino Watch App Watch App` (doubled name courtesy of the wizard;
+display name and bundle id are correct), watchOS 26.5, sharing `Shared/` with
+the iOS target. `WatchTimerView` is the whole app — ring, mascot, elapsed time,
+zone, one button. It **reads** the active plan and never writes it, so there is
+no settings screen to disagree with the phone.
+
+Still unverified: **sync between a real Watch and iPhone.** The watch simulator
+inherits iCloud from its paired phone simulator inconsistently, so the
+CloudKit round-trip needs hardware. Everything else — build, layout at 40/42mm,
+fonts, the merge logic — is verified.
+
 **CloudKit live sync (§3) is now on**, since the watch can only share a store
 with the phone through it — app groups don't cross the iPhone/Watch boundary.
 See "Sync" below.
