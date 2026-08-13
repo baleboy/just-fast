@@ -53,6 +53,11 @@
 			path = FastinoTests;
 			sourceTree = "<group>";
 		};
+		58B22FD03019DCC300633020 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		58B22FB63019DCC300633020 /* FastinoUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = FastinoUITests;
@@ -89,6 +94,7 @@
 			isa = PBXGroup;
 			children = (
 				58B22F9A3019DCC000633020 /* Fastino */,
+				58B22FD03019DCC300633020 /* Shared */,
 				58B22FAC3019DCC300633020 /* FastinoTests */,
 				58B22FB63019DCC300633020 /* FastinoUITests */,
 				58B22F993019DCC000633020 /* Products */,
@@ -122,6 +128,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				58B22F9A3019DCC000633020 /* Fastino */,
+				58B22FD03019DCC300633020 /* Shared */,
 			);
 			name = Fastino;
 			packageProductDependencies = (
