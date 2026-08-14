@@ -13,5 +13,16 @@
 		<string>Baloo2-Bold.ttf</string>
 		<string>Baloo2-ExtraBold.ttf</string>
 	</array>
+	<!-- Required by CloudKit, which logs "BUG IN CLIENT OF CLOUDKIT" at launch
+	     without it. Not for notifications of our own — the watch schedules none
+	     (see NotificationManager.add). This is what lets a silent push wake the
+	     app so a change made on the phone arrives without the watch being
+	     opened. Pairs with aps-environment in the entitlements: the entitlement
+	     grants the push, this declares the mode it's delivered in, and both are
+	     needed. The iOS target has carried the same key from the start. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>
