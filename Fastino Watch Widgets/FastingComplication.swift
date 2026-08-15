@@ -132,20 +132,51 @@ struct FastingComplicationView: View {
     /// our own colour there produces muddy or invisible results.
     private var usesColor: Bool { renderingMode == .fullColor }
 
-    /// The mascot's silhouette — the same `BlobShape` the app draws, without
-    /// the face, which is illegible below about 40pt.
+    private var bodyStyle: AnyShapeStyle {
+        usesColor
+            ? AnyShapeStyle(LinearGradient(
+                colors: [zoneColors.from, zoneColors.to],
+                startPoint: .top,
+                endPoint: .bottom
+            ))
+            : AnyShapeStyle(.foreground)
+    }
+
+    /// The mascot: the app's `BlobShape` silhouette with its face punched
+    /// *through* the body rather than drawn on it.
+    ///
+    /// Drawing the face in ink would work in full colour and vanish everywhere
+    /// else — accented and vibrant rendering collapse the whole view to one
+    /// tint, so dark-on-flame becomes flame-on-flame. Holes read in every mode,
+    /// because they show whatever is behind the complication.
+    ///
+    /// The features are deliberately chunkier than `FlameMascot`'s. Its
+    /// proportions are tuned for 40pt and up, where an eye is 0.122 of the
+    /// width; at complication scale that lands under a point and disappears.
     private var mascot: some View {
-        BlobShape.body
-            .fill(
-                usesColor
-                    ? AnyShapeStyle(LinearGradient(
-                        colors: [zoneColors.from, zoneColors.to],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ))
-                    : AnyShapeStyle(.foreground)
-            )
-            .aspectRatio(74.0 / 86.0, contentMode: .fit)
+        GeometryReader { proxy in
+            let w = proxy.size.width
+            let h = proxy.size.height
+            ZStack {
+                BlobShape.body.fill(bodyStyle)
+
+                Group {
+                    Ellipse()
+                        .frame(width: w * 0.17, height: h * 0.19)
+                        .position(x: w * 0.33, y: h * 0.46)
+                    Ellipse()
+                        .frame(width: w * 0.17, height: h * 0.19)
+                        .position(x: w * 0.67, y: h * 0.46)
+                    ComplicationSmile()
+                        .stroke(style: StrokeStyle(lineWidth: max(1, w * 0.085), lineCap: .round))
+                        .frame(width: w * 0.34, height: h * 0.09)
+                        .position(x: w * 0.5, y: h * 0.64)
+                }
+                .blendMode(.destinationOut)
+            }
+            .compositingGroup()
+        }
+        .aspectRatio(74.0 / 86.0, contentMode: .fit)
     }
 
     var body: some View {
@@ -223,6 +254,21 @@ struct FastingComplicationView: View {
     private var inlineLabel: String {
         guard let fast = entry.fast, let elapsed = entry.elapsed else { return "Not fasting" }
         return "Fasting \(Int(elapsed / 3600))h of \(fast.goalHours)h"
+    }
+}
+
+/// The same quad-curve smile `FlameMascot` draws, duplicated because the app's
+/// version is file-private to `FlameMascot.swift`. Keep the control point in
+/// step if that one ever changes.
+private struct ComplicationSmile: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.minY),
+            control: CGPoint(x: rect.midX, y: rect.maxY + rect.height * 0.6)
+        )
+        return path
     }
 }
 
