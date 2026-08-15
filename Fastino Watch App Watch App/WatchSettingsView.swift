@@ -61,9 +61,11 @@ private struct WatchSettingsForm: View {
             alertsSection
         }
         .navigationTitle("Settings")
-        // Plain, not the watch's default carousel: carousel gives every row a
-        // full-width card, and five plans plus four controls turns into a long
-        // scroll for a screen the user is meant to be in and out of.
+        // Plain, not the watch's default carousel: carousel scales and fades
+        // rows as they pass the edges, which is motion this screen has no use
+        // for. It does *not* make the list shorter — row height on watchOS is a
+        // tap target and stays put whatever the style, so this list scrolls and
+        // that's fine.
         .listStyle(.plain)
         .onChange(of: settings.startReminderEnabled) { reschedule() }
         .onChange(of: settings.startReminderHour) { reschedule() }
@@ -110,15 +112,18 @@ private struct WatchSettingsForm: View {
                 Button {
                     select(option)
                 } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(option.displayName)
-                                .font(.flameFixed(15, .extraBold))
-                            Text(option.nickname)
-                                .font(.flameFixed(11, .semibold))
-                                .foregroundStyle(Theme.muted)
-                        }
-                        Spacer()
+                    HStack(spacing: 5) {
+                        // One line, not two: five stacked two-line rows turn the
+                        // plan into a scroll of its own, and the nickname is a
+                        // gloss on the ratio rather than a second fact.
+                        Text(option.displayName)
+                            .font(.flameFixed(15, .extraBold))
+                        Text(option.nickname)
+                            .font(.flameFixed(11, .semibold))
+                            .foregroundStyle(Theme.muted)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                        Spacer(minLength: 2)
                         if option == settings.activeProtocol {
                             Image(systemName: "checkmark")
                                 .foregroundStyle(Theme.accentText)
