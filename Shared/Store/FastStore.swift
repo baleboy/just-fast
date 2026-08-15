@@ -65,7 +65,11 @@ struct FastStore {
 
         switch existing.count {
         case 0:
-            let created = AppSettings()
+            // Placeholder, not a preference — dated `.distantPast` so the user's
+            // real settings win when they sync in from another device. Creating
+            // it with `Date()` would make a fresh 16:8 default outrank a plan
+            // the user chose yesterday on their phone.
+            let created = AppSettings.unedited()
             context.insert(created)
             try? context.save()
             return created

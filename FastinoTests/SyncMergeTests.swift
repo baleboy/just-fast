@@ -135,6 +135,39 @@ struct SettingsElectionTests {
         #expect(SettingsElection.survivor(among: [high, low]) == low)
     }
 
+    /// The bug this guards: `FastStore.settings()` auto-creates a row whenever
+    /// it finds none. Created with `Date()`, that fresh 16:8 default would
+    /// outrank the plan the user actually chose yesterday on another device,
+    /// and the election would delete their real settings. `.distantPast` makes
+    /// a placeholder yield to any genuine edit.
+    @Test func anUneditedPlaceholderLosesToAnOlderEditedRow() {
+        let placeholder = identity(.distantPast)
+        let edited = identity(at(-500))  // long ago, but a real choice
+        #expect(SettingsElection.survivor(among: [placeholder, edited]) == edited)
+        #expect(SettingsElection.survivor(among: [edited, placeholder]) == edited)
+    }
+
+    /// Two devices both first-launched offline. Neither has a real edit, so the
+    /// id tiebreak decides — and must decide the same way on both.
+    @Test func twoUneditedPlaceholdersElectTheLowestID() {
+        let low = identity(.distantPast, UUID(uuidString: "00000000-0000-0000-0000-000000000001")!)
+        let high = identity(.distantPast, UUID(uuidString: "FFFFFFFF-0000-0000-0000-000000000000")!)
+        #expect(SettingsElection.survivor(among: [low, high]) == low)
+        #expect(SettingsElection.survivor(among: [high, low]) == low)
+    }
+
+    @Test func aPlaceholderIsMarkedUnedited() {
+        #expect(AppSettings.unedited().isUnedited)
+        #expect(AppSettings().isUnedited == false)
+    }
+
+    @Test func touchingAPlaceholderPromotesIt() {
+        let settings = AppSettings.unedited()
+        settings.touch(at: at(3))
+        #expect(settings.isUnedited == false)
+        #expect(settings.updatedAt == at(3))
+    }
+
     @Test func electionIsStableAcrossShuffles() {
         let candidates = (0..<8).map { identity(at(Double($0 % 3))) }
         let winner = SettingsElection.survivor(among: candidates)

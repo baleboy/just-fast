@@ -9,8 +9,17 @@
 //  "Singleton" is a convention here, not a constraint — CloudKit forbids unique
 //  constraints, so two devices that first launch offline each create a row and
 //  sync keeps both. `id` + `updatedAt` exist to resolve that: see
-//  `elect(from:)`, which every device runs to pick the same survivor from the
-//  same data. Both are defaulted, so they stay CloudKit-compatible.
+//  `SettingsElection`, which every device runs to pick the same survivor from
+//  the same data. Both are defaulted, so they stay CloudKit-compatible.
+//
+//  **A row nobody has edited must lose that election.** `FastStore.settings()`
+//  auto-creates one whenever it finds none, and a row created *now* would beat
+//  the user's real settings edited yesterday on another device — silently
+//  resetting their plan to the 16:8 default. That's why `unedited()` exists and
+//  why it stamps `.distantPast`: an auto-created row is a placeholder, not a
+//  preference, and it should yield to any genuine edit that reaches it.
+//  `touch()` promotes it to a real timestamp the moment the user changes
+//  anything.
 //
 
 import Foundation
@@ -66,8 +75,19 @@ final class AppSettings {
         DateComponents(hour: startReminderHour, minute: startReminderMinute)
     }
 
+    /// A placeholder row, created because none existed yet — not a choice the
+    /// user has made. Dated `.distantPast` so that any real settings arriving
+    /// from another device win the election; see the note at the top of this
+    /// file. `touch()` promotes it on the first genuine edit.
+    static func unedited() -> AppSettings {
+        AppSettings(updatedAt: .distantPast)
+    }
+
+    /// Whether this row is still a placeholder.
+    var isUnedited: Bool { updatedAt == .distantPast }
+
     /// Record a user edit. Views bind to this object directly with `@Bindable`,
-    /// bypassing `FastStore`, so they must call this for `elect(from:)` to have
+    /// bypassing `FastStore`, so they must call this for the election to have
     /// anything to order by.
     func touch(at date: Date = Date()) {
         updatedAt = date
