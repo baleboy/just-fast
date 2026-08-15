@@ -35,6 +35,14 @@ final class CompanionProbe: NSObject {
     private override init() { super.init() }
 
     func activate() {
+        #if DEBUG
+        // The answer in force *before* the probe replies. Activation can take a
+        // moment, and on an unpaired watch simulator it never completes at all —
+        // so a log line that only fires on resolution can't be relied on to say
+        // what the app is actually doing.
+        log.notice("Notification ownership at launch: this watch \(NotificationOwnership.schedulesLocally ? "schedules" : "defers to the phone").")
+        #endif
+
         guard WCSession.isSupported() else {
             // No session at all: nothing to defer to, so this watch owns
             // scheduling. Treat it as resolved rather than waiting forever.

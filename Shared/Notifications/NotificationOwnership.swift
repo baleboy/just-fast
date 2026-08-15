@@ -61,8 +61,26 @@ nonisolated enum NotificationOwnership {
         UserDefaults(suiteName: AppContainer.appGroupID)
     }
 
+    /// DEBUG-only override, so both branches can be exercised on one watch.
+    ///
+    /// Whether this watch defers or schedules is decided by a fact about the
+    /// *paired phone*, which can't be changed for a test run — the only honest
+    /// way to reach the standalone branch on a paired watch is to say so at
+    /// launch. `-forceWatchNotifications` claims ownership,
+    /// `-deferWatchNotifications` gives it up; neither touches the stored
+    /// answer, so a normal launch afterwards is unaffected.
+    private static var override: Bool? {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-forceWatchNotifications") { return true }
+        if arguments.contains("-deferWatchNotifications") { return false }
+        #endif
+        return nil
+    }
+
     /// Whether this device schedules notifications. Read on every `add()`.
     static var schedulesLocally: Bool {
+        if let override { return override }
         guard let store, store.object(forKey: defaultsKey) != nil else {
             return conservativeDefault
         }
@@ -73,9 +91,23 @@ nonisolated enum NotificationOwnership {
     /// - Returns: whether the answer changed, so the caller knows to re-arm.
     @discardableResult
     static func update(activated: Bool, companionInstalled: Bool) -> Bool {
+        if let override {
+            log.notice("Notification ownership: forced by launch argument — this watch \(override ? "schedules" : "defers to the phone").")
+            return false
+        }
+
         let previous = schedulesLocally
         let next = decide(cached: previous, activated: activated, companionInstalled: companionInstalled)
-        guard next != previous || store?.object(forKey: defaultsKey) == nil else { return false }
+        guard next != previous || store?.object(forKey: defaultsKey) == nil else {
+            // Same answer as last launch, so nothing to re-arm. Still logged in
+            // DEBUG: otherwise the decision is only ever observable on a watch
+            // that has never resolved one, which means uninstalling the app to
+            // watch it happen.
+            #if DEBUG
+            log.notice("Notification ownership: unchanged — this watch \(next ? "schedules" : "defers to the phone").")
+            #endif
+            return false
+        }
         store?.set(next, forKey: defaultsKey)
         log.notice("Notification ownership: this watch \(next ? "schedules" : "defers to the phone").")
         return next != previous
