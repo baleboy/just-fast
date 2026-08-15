@@ -51,8 +51,14 @@ struct WatchAdjustEndView: View {
                 VStack(spacing: 10) {
                     summary
                     chips
+                    // No .font() here, deliberately. The watchOS picker sizes
+                    // its digit wells to the system font's metrics; Baloo 2 is
+                    // taller and gets clipped top and bottom, which is worse
+                    // than the inconsistency of leaving one control in the
+                    // system face. It's also the only spot in the app where a
+                    // system control draws its own text.
                     DatePicker("End", selection: $end, displayedComponents: .hourAndMinute)
-                        .font(.flameFixed(14, .semibold))
+                        .frame(height: 44)
                     Button("Confirm") { save() }
                         .font(.flameFixed(15, .extraBold))
                         .buttonStyle(.borderedProminent)

@@ -167,12 +167,14 @@ private struct WatchSettingsForm: View {
             Toggle("Remind me", isOn: $settings.startReminderEnabled)
                 .font(.flameFixed(15, .semibold))
             if settings.startReminderEnabled {
+                // No .font(), for the same reason as WatchAdjustEndView's
+                // picker: the digit wells are sized to the system font's
+                // metrics and Baloo 2 clips inside them.
                 DatePicker(
                     "Time",
                     selection: reminderTime,
                     displayedComponents: .hourAndMinute
                 )
-                .font(.flameFixed(15, .semibold))
             }
             // This instant is also when the eating window closes (§4.1), which
             // is not obvious from a row labelled "reminder".
