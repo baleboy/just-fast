@@ -19,7 +19,7 @@ struct Fastino_Watch_App_Watch_AppApp: App {
 
     var body: some Scene {
         WindowGroup {
-            WatchTimerView()
+            WatchRootView()
                 .task {
                     // Resolves who owns notifications, and re-arms them if the
                     // answer changed since last launch (§4.4).

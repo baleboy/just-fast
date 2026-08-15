@@ -106,7 +106,10 @@ No Live Activities — by decision: the system ends a Live Activity after 8 hour
 - Intents write through the same shared store + validation as the app; widgets reload after every intent run.
 
 ### 4.7 Apple Watch
-- Independent watchOS app (SwiftUI, shared SwiftData/CloudKit store): mirror of the main screen — ring, elapsed time, start/end button, current streak. No stats screen on watch.
+- Independent watchOS app (SwiftUI, shared SwiftData/CloudKit store): ring, elapsed time, start/end button. "Independent" means it talks to CloudKit itself rather than proxying through the phone — starting and ending a fast works with the phone out of range.
+- **Installable on its own**, without the iPhone app. That makes the watch the only surface some users ever see, so it carries the settings a plan needs to work at all: the protocol, the start-reminder time, and the goal/milestone alert toggles. Appearance is not among them — there is no light appearance on watchOS.
+- **Three pages, timer in the middle**: `[Progress] ← [Timer] → [Settings]`. Progress is the current streak, the seven-day strip and the ten most recent fasts; tapping one opens a sheet to correct an end time that got away, or discard the fast. Start times stay phone-only — they need a date as well as a time.
+- **Only one device schedules notifications.** iOS forwards the phone's alerts to a paired watch and there is no API to dedupe them, so the watch schedules only when there is no iPhone app to defer to. Cancelling stays live on both.
 - **Complications / Smart Stack widget**: progress ring with elapsed time; tappable to open the watch app. Corner and circular families at minimum.
 - Start/end actions on the watch sync to iPhone via CloudKit; iPhone widgets reflect the change on next reload (`WidgetCenter.reloadAllTimelines` triggered by the sync handler).
 

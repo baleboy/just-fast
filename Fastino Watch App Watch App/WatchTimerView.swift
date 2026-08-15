@@ -2,9 +2,16 @@
 //  WatchTimerView.swift
 //  Fastino Watch App
 //
-//  The whole watch app (§4.7): ring, mascot, elapsed time, zone, one button.
-//  No stats and no settings — the watch reads the plan the phone chose and
-//  never writes it, so there's nothing here that can drift out of sync.
+//  The watch's home page (§4.7): ring, mascot, elapsed time, zone, one button.
+//  It's the middle page of `WatchRootView` and the one the app opens on, so
+//  everything here earns its place by being useful at a glance.
+//
+//  This was once the entire app, on the reasoning that the watch only ever
+//  *reads* the plan and the phone owns every choice. Standalone installation
+//  broke that: a watch with no iPhone app has no other way to pick a protocol
+//  or fix a forgotten end time. Hence the Progress and Settings pages either
+//  side — but the split still holds here, and this page writes nothing but the
+//  fast itself.
 //
 //  Written fresh rather than adapted from TimerView, which is 580 lines of
 //  sheets, eating-window card and tab chrome. What *is* reused is the part

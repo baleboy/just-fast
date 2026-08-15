@@ -116,9 +116,41 @@ reliably by editing the file by hand or verified headlessly.
 
 Target `Fastino Watch App Watch App` (doubled name courtesy of the wizard;
 display name and bundle id are correct), watchOS 26.5, sharing `Shared/` with
-the iOS target. `WatchTimerView` is the whole app — ring, mascot, elapsed time,
-zone, one button. It **reads** the active plan and never writes it, so there is
-no settings screen to disagree with the phone.
+the iOS target. `WKRunsIndependentlyOfCompanionApp` is set, so it can be
+installed from the Watch App Store on its own — which is what the pages below
+exist for.
+
+`WatchRootView` is a three-page `TabView(.page)`, timer in the middle and
+selected at launch:
+
+- `WatchTimerView` — ring, mascot, elapsed time, zone, one button.
+- `WatchSettingsView` — plan, start-reminder toggle and time, goal and milestone
+  toggles. A deliberate subset: no appearance (`Theme.dynamic` resolves
+  statically to dark on watchOS), no sync status, no export.
+- `WatchProgressView` — current streak, seven-day bar strip, ten most recent
+  closed fasts. Tapping one opens `WatchAdjustEndView`.
+
+`WatchAdjustEndView` fixes a forgotten end time: five earlier-only offset chips
+(−15m to −6h), an hour-and-minute picker, Confirm, and a destructive Discard
+behind a confirmation. It writes through `FastStore.update`, like everything
+else. Start times are not editable here — rarer, needs a date too, and gets a
+full screen on the phone.
+
+The watch originally only **read** the plan. Standalone installation ended that:
+a watch with no iPhone app has no other way to choose a protocol or repair a
+record. Edits stamp `AppSettings.touch()` so `SettingsElection` orders them
+against the phone's correctly.
+
+**Notification ownership is decided at runtime** (`NotificationOwnership` +
+`CompanionProbe`). iOS forwards the phone's local notifications to a paired
+watch and there is no API to opt out — identifiers are per-device, so matching
+ids don't dedupe. The watch therefore schedules only when `WCSession`
+reports no companion app. `isCompanionAppInstalled` reads `false` before
+activation completes, so the pre-activation default is "defer": an invisible
+gap on a standalone watch's first launch beats duplicate alerts on every paired
+one. Cancelling is ungated. In DEBUG, `-forceWatchNotifications` and
+`-deferWatchNotifications` force either branch, which is the only way to reach
+the standalone path on a paired watch.
 
 ## Built: the watch complication (§4.7)
 
