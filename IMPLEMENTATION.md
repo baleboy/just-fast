@@ -110,8 +110,7 @@ reliably by editing the file by hand or verified headlessly.
 1. **Widget extension (§4.5)** — Lock Screen circular/rectangular + Home Screen
    widgets using `Text(timerInterval:)` and the interactive Start intent. Add a
    Widget Extension target and tick `Shared/` for it.
-2. **Watch complications / Smart Stack (§4.7)** — a separate widget-extension
-   target for watchOS. Deferred with the iOS widget above, for the same reason.
+(The watch complication is built — see below.)
 
 ## Built: the watchOS app (§4.7)
 
@@ -120,6 +119,36 @@ display name and bundle id are correct), watchOS 26.5, sharing `Shared/` with
 the iOS target. `WatchTimerView` is the whole app — ring, mascot, elapsed time,
 zone, one button. It **reads** the active plan and never writes it, so there is
 no settings screen to disagree with the phone.
+
+## Built: the watch complication (§4.7)
+
+Target `Fastino Watch WidgetsExtension` in `Fastino Watch Widgets/`, embedded in
+the watch app. Circular, corner, inline and rectangular families; tapping opens
+the watch app, which watchOS does by default (no `widgetURL`, which would do
+nothing without a registered URL scheme).
+
+**The store lives in an app group** (`group.com.baleware.fastino`) because an
+extension is a separate process and can't read the app's sandbox. All three
+targets declare it; a target missing it doesn't error, it silently gets its own
+empty container and shows "Not fasting" forever. The extension opens the store
+**read-only with mirroring off** — the app process owns CloudKit, and a second
+mirror inside a short-lived extension would be wasteful and a source of
+conflicting writes. App groups are app↔extension on one device; CloudKit is
+phone↔watch. Both are needed, for different problems.
+
+Two things that are easy to get wrong here:
+
+- **The timeline must schedule every instant the display changes.** The label is
+  a whole-hour count, so hour marks matter as much as the zone boundaries and
+  the goal. All are known in advance, so nothing polls.
+- **Colour depends on the rendering mode.** Watch faces render complications
+  accented or vibrant and discard colour; Smart Stack widgets get `.fullColor`.
+  The view branches on `widgetRenderingMode` rather than designing for the
+  monochrome floor everywhere. For the same reason the mascot's face is punched
+  *through* the body — ink drawn on it would be flame-on-flame once flattened.
+
+`FlameRing` is deliberately not reused: its gold→orange→pink sweep plus glow
+turns to mud at 30pt and is discarded by accented rendering anyway.
 
 Still unverified: **sync between a real Watch and iPhone.** The watch simulator
 inherits iCloud from its paired phone simulator inconsistently, so the
