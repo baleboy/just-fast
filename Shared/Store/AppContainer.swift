@@ -19,6 +19,13 @@
 //  offline *user* is not this case: the container initialises fine and
 //  mirroring simply retries later.
 //
+//  App group (§4.5, §4.7): the store lives in a shared group container rather
+//  than each target's own sandbox, because the widget/complication extension
+//  runs in a *different process* and cannot read the app's sandbox. App groups
+//  work between an app and its extensions on one device — unlike iPhone⇄Watch,
+//  which is what CloudKit is for. Extensions open the same file read-only via
+//  `readOnly()`, leaving the app process the only one running mirroring.
+//
 
 import Foundation
 import OSLog
@@ -31,7 +38,25 @@ enum AppContainer {
     /// both Fastino.entitlements and the watch app's entitlements exactly.
     static let cloudKitContainerID = "iCloud.com.baleware.fastino"
 
+    /// Shared between each app and its extensions. Must be listed in every
+    /// target's entitlements — a target without it silently gets its own
+    /// private store and shows stale or empty data forever.
+    static let appGroupID = "group.com.baleware.fastino"
+
     private static let log = Logger(subsystem: "com.baleware.fastino", category: "AppContainer")
+
+    /// The store file inside the group container, or `nil` when the app group
+    /// isn't available — which means the entitlement is missing, so we log it
+    /// and fall back rather than trapping.
+    private static var groupStoreURL: URL? {
+        guard let directory = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupID)
+        else {
+            log.error("App group \(appGroupID) unavailable — extensions will not see this store.")
+            return nil
+        }
+        return directory.appending(path: "Fastino.store")
+    }
 
     /// True when the store opened with mirroring requested.
     ///
@@ -42,7 +67,9 @@ enum AppContainer {
     private(set) static var isCloudKitConfigured = false
 
     static let shared: ModelContainer = {
-        let cloudKit = ModelConfiguration(
+        let cloudKit = groupStoreURL.map {
+            ModelConfiguration(schema: schema, url: $0, cloudKitDatabase: .private(cloudKitContainerID))
+        } ?? ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: false,
             cloudKitDatabase: .private(cloudKitContainerID)
@@ -55,13 +82,32 @@ enum AppContainer {
             log.error("CloudKit mirroring unavailable, falling back to a local store: \(error)")
         }
 
-        let local = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let local = groupStoreURL.map { ModelConfiguration(schema: schema, url: $0) }
+            ?? ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
             return try ModelContainer(for: schema, configurations: [local])
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
     }()
+
+    /// Read-only view of the same store, for widget and complication processes.
+    ///
+    /// Mirroring is deliberately off here: the app process owns syncing, and
+    /// running a second CloudKit mirror inside a short-lived extension is both
+    /// wasteful and a source of conflicting writes. The extension sees whatever
+    /// the app last synced into the shared file, which is what `WidgetCenter`
+    /// reloads are for.
+    static func readOnly() -> ModelContainer? {
+        guard let url = groupStoreURL else { return nil }
+        let configuration = ModelConfiguration(schema: schema, url: url, allowsSave: false)
+        do {
+            return try ModelContainer(for: schema, configurations: [configuration])
+        } catch {
+            log.error("Could not open the shared store read-only: \(error)")
+            return nil
+        }
+    }
 
     /// An in-memory container for previews and tests.
     @MainActor

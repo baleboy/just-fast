@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The app group is all this extension needs: it opens the shared store
+	     read-only and never syncs. Deliberately no iCloud container and no
+	     aps-environment — the watch app owns CloudKit mirroring, and a second
+	     mirror inside a short-lived extension would be wasteful and a source of
+	     conflicting writes.
+
+	     This MUST match the group in the watch app's entitlements exactly. A
+	     mismatch doesn't error: the extension silently gets its own empty
+	     container and the complication shows "Not fasting" forever. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.baleware.fastino</string>
+	</array>
+</dict>
+</plist>

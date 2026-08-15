@@ -8,6 +8,13 @@
 	     on one device reaches the other without waiting to be opened. -->
 	<key>aps-environment</key>
 	<string>development</string>
+	<!-- Shared with the complication extension so it can read the same store.
+	     Separate from CloudKit: this is app↔extension on one device, CloudKit
+	     is phone↔watch. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.baleware.fastino</string>
+	</array>
 	<!-- The container MUST match Fastino.entitlements exactly. A watch pointed
 	     at a different container syncs to a different database: both apps appear
 	     to work, and they never converge. -->
