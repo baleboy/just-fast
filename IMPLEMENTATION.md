@@ -120,6 +120,23 @@ the iOS target. `WKRunsIndependentlyOfCompanionApp` is set, so it can be
 installed from the Watch App Store on its own — which is what the pages below
 exist for.
 
+**This is dual distribution, not a watch-only app.** Independence is purely
+additive: the watch app is still embedded in the iOS app
+(`Fastino.app/Watch/…`) and still declares
+`WKCompanionAppBundleIdentifier = com.baleware.fastino`, so a user who installs
+Fastino on their iPhone gets it on their paired watch automatically, exactly as
+before. One App Store listing serves both audiences. The only reason a phone
+user would install it by hand is having turned *Automatic App Install* off in
+the Watch app, which is a user setting and predates all of this.
+
+Three keys, easily confused, so: **don't remove
+`WKCompanionAppBundleIdentifier`** on the reasoning that independence made it
+redundant — that would break auto-install for every phone user, and it's the
+kind of tidy-up that looks correct. `WKRunsIndependentlyOfCompanionApp` adds
+standalone installation without removing anything. `WKWatchOnly` is
+deliberately **unset**: that one means no iOS app at all, which is a different
+product.
+
 `WatchRootView` is a three-page `TabView(.page)`, timer in the middle and
 selected at launch:
 
