@@ -148,10 +148,23 @@ struct WatchTimerView: View {
     }
 
     private func toggle() {
+        let wasIdle = openFast == nil
         do {
             // Stamped so History can show where a fast came from, and so the
             // phone can tell a watch-started fast apart from its own.
             let result = try store.toggle(createdVia: .watch)
+            if wasIdle {
+                // Ask at the moment it's first useful — so the goal alert can
+                // fire — rather than nagging on launch (§4.4). Only when this
+                // watch owns scheduling; awaiting the probe avoids prompting on
+                // a paired watch whose session hasn't activated yet. The start
+                // itself never waits on this.
+                Task {
+                    guard await CompanionProbe.shared.resolvedSchedulesLocally() else { return }
+                    await NotificationManager.shared.requestAuthorization()
+                    store.reconcileNotifications()
+                }
+            }
             if result.kind == .ended, result.goalMet {
                 Haptics.success()
             } else {

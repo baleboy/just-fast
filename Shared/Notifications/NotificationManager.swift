@@ -35,18 +35,16 @@ final class NotificationManager {
 
     @discardableResult
     func requestAuthorization() async -> Bool {
-        #if os(watchOS)
-        // The watch never schedules anything (see `add`), so asking would be a
-        // permission prompt in exchange for nothing.
-        return false
-        #else
+        // A device that defers scheduling has nothing to show, so asking would
+        // be a permission prompt in exchange for nothing. On the watch this is
+        // true whenever the iPhone app is installed; see NotificationOwnership.
+        guard NotificationOwnership.schedulesLocally else { return false }
         do {
             return try await center.requestAuthorization(options: [.alert, .sound])
         } catch {
             log.error("Authorization request failed: \(error.localizedDescription, privacy: .public)")
             return false
         }
-        #endif
     }
 
     /// True when iOS will not present our alerts — permission was denied, or
@@ -71,26 +69,24 @@ final class NotificationManager {
     /// when permission is denied, which is exactly the case that used to leave
     /// the app permanently and invisibly mute.
     ///
-    /// On watchOS this is a deliberate no-op: iOS forwards the phone's
-    /// notifications to the watch, and there is no API to opt a local
-    /// notification out of forwarding — identifiers are namespaced per device,
-    /// so matching ids don't dedupe. If both devices scheduled the same goal
-    /// alert the user would simply get it twice. The phone owns scheduling;
-    /// cancelling stays live on both so a watch-side end still clears whatever
-    /// that device had. FastinoApp re-arms on launch and on every foreground,
-    /// so a fast started on the watch gets its notifications the moment the
-    /// phone is next opened.
+    /// Scheduling is skipped entirely on a device that doesn't own it — see
+    /// `NotificationOwnership` for why only one device may schedule. On iOS
+    /// that guard is always true; on the watch it's true only when there's no
+    /// iPhone app to defer to.
+    ///
+    /// **Cancelling is deliberately never gated.** Every `schedule*` below
+    /// calls its matching `cancel*` first, so when ownership flips from watch
+    /// to phone the next `reconcileNotifications()` clears whatever the watch
+    /// had queued and then declines to re-add it. That self-cleaning property
+    /// is why the flip needs no teardown code of its own.
     private func add(_ request: UNNotificationRequest) {
-        #if os(watchOS)
-        return
-        #else
+        guard NotificationOwnership.schedulesLocally else { return }
         let identifier = request.identifier
         center.add(request) { [log] error in
             if let error {
                 log.error("Could not schedule \(identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
         }
-        #endif
     }
 
     // MARK: Goal reached (§4.4)

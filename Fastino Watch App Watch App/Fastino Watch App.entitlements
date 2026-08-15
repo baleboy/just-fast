@@ -2,10 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Not for our own notifications — the watch deliberately schedules none
-	     (see NotificationManager.add). This is what lets CloudKit wake the app
-	     with a silent push when the phone changes something, so a fast started
-	     on one device reaches the other without waiting to be opened. -->
+	<!-- Primarily so CloudKit can wake the app with a silent push when another
+	     device changes something, rather than waiting to be opened. It also
+	     covers the watch's own alerts on a standalone install, where there's no
+	     iPhone app to defer scheduling to — see NotificationOwnership. -->
 	<key>aps-environment</key>
 	<string>development</string>
 	<!-- Shared with the complication extension so it can read the same store.

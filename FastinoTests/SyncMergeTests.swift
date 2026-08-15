@@ -103,6 +103,47 @@ struct OpenFastMergeTests {
     }
 }
 
+@Suite("Notification ownership")
+struct NotificationOwnershipTests {
+
+    /// The whole truth table. Only one device may schedule: iOS forwards the
+    /// phone's alerts to the watch and there's no API to dedupe them.
+    @Test func aWatchOwnsSchedulingOnlyWhenThereIsNoCompanionApp() {
+        #expect(NotificationOwnership.decide(cached: false, activated: true, companionInstalled: false))
+        #expect(NotificationOwnership.decide(cached: true, activated: true, companionInstalled: false))
+        #expect(!NotificationOwnership.decide(cached: false, activated: true, companionInstalled: true))
+        #expect(!NotificationOwnership.decide(cached: true, activated: true, companionInstalled: true))
+    }
+
+    /// The regression that would double every alert on every paired watch:
+    /// `isCompanionAppInstalled` reads `false` before activation completes, so
+    /// trusting it early makes a paired watch wrongly claim ownership.
+    @Test func anUnactivatedSessionKeepsTheCachedAnswer() {
+        #expect(!NotificationOwnership.decide(cached: false, activated: false, companionInstalled: false))
+        #expect(NotificationOwnership.decide(cached: true, activated: false, companionInstalled: false))
+        // Even if it somehow reported installed, an unactivated session is not
+        // evidence of anything.
+        #expect(NotificationOwnership.decide(cached: true, activated: false, companionInstalled: true))
+    }
+
+    /// A device that has never resolved defers to the phone: an invisible gap
+    /// on a standalone watch's first launch beats visible duplicate alerts on
+    /// every paired one.
+    @Test func theDefaultDefersToThePhone() {
+        #expect(NotificationOwnership.conservativeDefault == false)
+        #expect(!NotificationOwnership.decide(
+            cached: NotificationOwnership.conservativeDefault,
+            activated: false,
+            companionInstalled: false
+        ))
+    }
+
+    /// On iOS there is nothing to defer to, so the phone always schedules.
+    @Test func thePhoneAlwaysSchedules() {
+        #expect(NotificationOwnership.schedulesLocally)
+    }
+}
+
 @Suite("Settings election")
 struct SettingsElectionTests {
 
