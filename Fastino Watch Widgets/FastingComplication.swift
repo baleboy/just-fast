@@ -55,24 +55,39 @@ struct FastingProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<FastingEntry>) -> Void) {
         let now = Date()
-        let entry = currentEntry(at: now)
+        // Fetched once and reused for every entry: they all describe the same
+        // fast at different instants, so re-reading the store per entry would
+        // be ~50 fetches for one timeline.
+        let openFast = Self.openFast()
+        let entry = FastingEntry(date: now, fast: openFast)
 
-        guard let fast = entry.fast else {
+        guard let fast = openFast else {
             // Nothing running: nothing changes until the app tells us it has.
             completion(Timeline(entries: [entry], policy: .never))
             return
         }
 
-        // Only the instants where the display actually changes — the zone
-        // boundaries still ahead of us, and the goal.
-        var dates: [Date] = MetabolicZone.allCases
-            .map { fast.start.addingTimeInterval($0.startHours * 3600) }
-            .filter { $0 > now }
-        dates.append(fast.goalReachedAt)
+        // Every instant the display changes, all of them known in advance:
+        //
+        //  • each hour mark, because the label is a whole-hour count. Omitting
+        //    these was a bug — the timeline would sit on "9h" for hours.
+        //  • the zone boundaries, which change the rectangular family's title.
+        //  • the goal, where the ring fills.
+        //
+        // Capped at 48h: a fast that long is already past anything the app
+        // considers valid, and WidgetKit won't thank us for a huge timeline.
+        let hourMarks = (1...48).map { fast.start.addingTimeInterval(Double($0) * 3600) }
+        let zoneMarks = MetabolicZone.allCases.map {
+            fast.start.addingTimeInterval($0.startHours * 3600)
+        }
 
-        let entries = [entry] + dates.filter { $0 > now }.sorted().map { currentEntry(at: $0) }
-        // After the goal there is nothing further to predict; the next update
-        // comes from the app ending the fast and reloading us.
+        let dates = Set(hourMarks + zoneMarks + [fast.goalReachedAt])
+            .filter { $0 > now }
+            .sorted()
+
+        let entries = [entry] + dates.map { FastingEntry(date: $0, fast: fast) }
+        // The fast ending is not predictable, so there's no useful refresh date
+        // to ask for — FastStore.reloadWidgets() drives that instead.
         completion(Timeline(entries: entries, policy: .never))
     }
 
@@ -105,7 +120,10 @@ struct FastingComplicationView: View {
         case .accessoryCircular:
             circular
         case .accessoryCorner:
-            circular.widgetLabel { Text(shortLabel) }
+            // The curved label carries the zone, not the hours — the gauge is
+            // already showing those, and repeating them wastes the one extra
+            // piece of information this family affords.
+            circular.widgetLabel { Text(entry.zone?.name ?? "Ready") }
         case .accessoryInline:
             Text(inlineLabel)
         case .accessoryRectangular:
@@ -125,8 +143,14 @@ struct FastingComplicationView: View {
         Gauge(value: entry.progress) {
             Image(systemName: "flame.fill")
         } currentValueLabel: {
-            Text(entry.fast == nil ? "—" : shortLabel)
-                .font(.system(size: 13, weight: .heavy, design: .rounded))
+            if entry.fast == nil {
+                // An empty ring plus a dash reads as "broken"; the glyph reads
+                // as "nothing running, tap to start".
+                Image(systemName: "flame")
+            } else {
+                Text(shortLabel)
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+            }
         }
         .gaugeStyle(.accessoryCircularCapacity)
         .widgetAccentable()
