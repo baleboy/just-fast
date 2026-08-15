@@ -144,14 +144,30 @@ selected at launch:
 - `WatchSettingsView` — plan, start-reminder toggle and time, goal and milestone
   toggles. A deliberate subset: no appearance (`Theme.dynamic` resolves
   statically to dark on watchOS), no sync status, no export.
-- `WatchProgressView` — current streak, seven-day bar strip, ten most recent
-  closed fasts. Tapping one opens `WatchAdjustEndView`.
+- `WatchProgressView` — current streak, seven-day bar strip, then the fast in
+  progress (if any) above the ten most recent finished ones. Tapping any row
+  opens `WatchFastDetailView`.
 
-`WatchAdjustEndView` fixes a forgotten end time: five earlier-only offset chips
-(−15m to −6h), an hour-and-minute picker, Confirm, and a destructive Discard
-behind a confirmation. It writes through `FastStore.update`, like everything
-else. Start times are not editable here — rarer, needs a date too, and gets a
-full screen on the phone.
+`WatchFastDetailView` is the repair hub for one fast: duration, a Start row, an
+End row (replaced by "In progress" while it runs), and a destructive Discard
+behind a confirmation. Each time row pushes `WatchTimeEditView`, which edits a
+single instant with six bidirectional offset chips (±15m/30m/1h) and an
+hour-and-minute picker. Bounds come from the caller — an end can't precede its
+start or land in the future, a start can't follow its end — and out-of-range
+chips disable rather than clamp. Overlap with neighbouring fasts is left to
+`FastValidation`, which is the only thing that knows the other records.
+Everything writes through `FastStore.update`.
+
+**The open fast is editable, and that's the point.** On iPhone the same repair
+lives in History → `EditFastView`, which lists the open fast and can edit its
+start; a standalone watch has no such fallback. Tapping Start twenty minutes
+after actually stopping eating puts every zone boundary and the goal alert out
+by that much, and `FastStore.update` re-arms the notifications when it's fixed.
+Ending a fast is deliberately *not* offered here — that stays the timer page's
+single End button.
+
+Neither editor touches the date. Same-day is what these corrections are, and a
+date wheel at 41mm is worse at saying "yesterday" than the chips are.
 
 The watch originally only **read** the plan. Standalone installation ended that:
 a watch with no iPhone app has no other way to choose a protocol or repair a

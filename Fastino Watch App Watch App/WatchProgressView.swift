@@ -43,7 +43,7 @@ struct WatchProgressView: View {
             .navigationTitle("Progress")
         }
         .sheet(item: $editing) { fast in
-            WatchAdjustEndView(fast: fast)
+            WatchFastDetailView(fast: fast)
         }
     }
 
@@ -110,17 +110,21 @@ struct WatchProgressView: View {
     // MARK: Recent
 
     private var recentSection: some View {
-        // Closed fasts only: the open one is the timer page's business, and
-        // there is no end time to correct yet.
-        let recent = fasts.filter { !$0.isOpen }.prefix(10)
+        // The open fast is listed too, and first. Its *start* is the time most
+        // worth correcting — tap Start twenty minutes late and every zone
+        // boundary and the goal alert are wrong from then on — and the timer
+        // page has no way in. Ending it stays the timer page's job.
+        let open = fasts.first(where: \.isOpen)
+        let closed = fasts.filter { !$0.isOpen }.prefix(10)
+        let listed = (open.map { [$0] } ?? []) + Array(closed)
 
         return Section("Recent") {
-            if recent.isEmpty {
-                Text("No finished fasts yet.")
+            if listed.isEmpty {
+                Text("No fasts yet.")
                     .font(.flameFixed(12, .semibold))
                     .foregroundStyle(Theme.muted)
             } else {
-                ForEach(Array(recent)) { fast in
+                ForEach(listed) { fast in
                     Button {
                         editing = fast
                     } label: {
@@ -144,7 +148,11 @@ struct WatchProgressView: View {
                     .foregroundStyle(Theme.muted)
             }
             Spacer()
-            if record.isGoalMet {
+            if record.isOpen {
+                Text("now")
+                    .font(.flameFixed(11, .extraBold))
+                    .foregroundStyle(Theme.accentText)
+            } else if record.isGoalMet {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Theme.success)
             }
@@ -152,7 +160,8 @@ struct WatchProgressView: View {
     }
 
     private func durationLabel(_ record: FastRecord) -> String {
-        guard let duration = record.finalDuration else { return "—" }
+        // The open fast has no finalDuration; show it running instead of "—".
+        let duration = record.finalDuration ?? record.duration(asOf: Date())
         let hours = Int(duration) / 3600
         let minutes = (Int(duration) % 3600) / 60
         return "\(hours)h \(minutes)m of \(record.goalHours)h"
