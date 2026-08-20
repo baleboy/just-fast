@@ -13,7 +13,25 @@ import SwiftData
 enum DemoSeeder {
     static var isRequested: Bool {
         #if DEBUG
-        return ProcessInfo.processInfo.arguments.contains("-seedDemo") || seedsEatingWindow
+        return ProcessInfo.processInfo.arguments.contains("-seedDemo")
+            || seedsEatingWindow
+            || seedsHistory
+        #else
+        return false
+        #endif
+    }
+
+    /// `-seedHistory` extends the seed to three months of fasts, which is what
+    /// the Trends Patterns cards (§4.8) need before they have anything to say —
+    /// four days can only ever render "not enough nights yet".
+    ///
+    /// The stop times deliberately track the same wobble
+    /// `FixtureHealthProvider` uses for sleep and weight, so the correlation
+    /// cards show a *finding* rather than noise. Both sides are invented data;
+    /// making them agree is what makes the screen reviewable.
+    static var seedsHistory: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-seedHistory")
         #else
         return false
         #endif
@@ -41,9 +59,23 @@ enum DemoSeeder {
         let goal = 16
 
         // A handful of completed fasts on recent consecutive days (builds a streak).
-        for daysAgo in 1...4 {
-            let end = cal.date(byAdding: .day, value: -daysAgo, to: now)!
-            let start = end.addingTimeInterval(-Double(goal) * 3600 - 900) // 16h15m
+        //
+        // Each ends at noon rather than at whatever time the seed happens to
+        // run, so the schedule reads like a real 16:8 — stop eating just before
+        // 20:00, break the fast at midday. Anchoring to `now` instead put every
+        // fast's start in the small hours, which the Trends "stopped eating"
+        // chart (§4.8) shows up immediately. The calendar days, and so the
+        // streak and the week strip, are unaffected.
+        for daysAgo in 1...(seedsHistory ? 89 : 4) {
+            // A couple of missed days a month, so the gaps are exercised.
+            if seedsHistory, daysAgo % 17 == 5 { continue }
+            let day = cal.date(byAdding: .day, value: -daysAgo, to: now)!
+            let end = cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day
+            // Fixed 16h15m normally. With a long history, the stop time moves
+            // with the same wobble the health fixture uses (above), so a longer
+            // fast means an earlier stop and a longer night.
+            let wobble = seedsHistory ? sin(Double(daysAgo) * 0.7) : 0
+            let start = end.addingTimeInterval(-Double(goal) * 3600 - 900 - wobble * 3600)
             let fast = Fast(start: start, end: end, goalHours: goal, protocolID: "16:8", createdVia: .app)
             context.insert(fast)
         }

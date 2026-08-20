@@ -102,6 +102,68 @@ through `FastStore` and reload widgets. Only Start/End are App Shortcuts; the
 `INAlternativeAppNames` aliases in `Info.plist` make "Hey Siri, start fasting"
 work. Toggle stays a Shortcuts-app action for Back Tap.
 
+## Built: Apple Health (§4.8)
+
+Read-only, iOS-only. `TrendsView` is pushed from the Stats tab, alongside
+History: fasting hours, an eating-stop/sleep overlay, and weight, stacked over
+one shared 30-day date axis. The only screen in the app using Swift
+Charts, styled entirely from `Theme`.
+
+The middle panel is the one the screen is built around: `FastingEngine.eatingStops`
+(our own data, not Health's) as dots, overlaid on each night's sleep drawn as a
+bar from asleep to awake. Both sit on one clock axis in signed hours from
+midnight, so there is no second scale. Covered by
+`EatingStopTests` in `FastingEngineTests.swift`: the signed-hours scale staying
+continuous across midnight, the longest-fast-per-day rule matching `lastDays`,
+the open fast landing on today, DST, and time-zone bucketing.
+
+**Patterns** sits below the timelines: two scatter plots (eating stop vs hours
+asleep, weekly average fast vs weekly weight change) built by
+`Shared/Engine/Correlation.swift` and `Shared/Health/HealthCorrelation.swift`,
+covered by `FastinoTests/CorrelationTests.swift` — the fit, both pairings, and
+every branch of the wording. The weight pairing is weekly over 90 days, which is
+why `HealthProvider.series` takes a separate `weightDays` window.
+
+`-seedHistory` seeds three months of fasts, which the Patterns cards need before
+they can say anything; its stop times deliberately track the same wobble
+`FixtureHealthProvider` uses, so the cards show a finding rather than noise.
+Both sides are invented data — making them agree is what makes the screen
+reviewable at all.
+
+`DemoSeeder`'s completed fasts now end at noon rather than at whatever time the
+seed runs, so the seeded schedule reads like a real 16:8 (stop just before 20:00,
+break at midday) instead of starting in the small hours. Calendar days — and so
+the streak and the week strip — are unchanged.
+
+The pure half lives in `Shared/Health/` (`HealthSample`, `SleepAggregator`,
+`WeightSeries`, `HealthProvider` + `FixtureHealthProvider`) and is covered by
+`FastinoTests/SleepAggregatorTests.swift` — overlapping multi-source samples,
+`inBed`/`awake` exclusion, naps, DST, and time-zone bucketing. The one file that
+imports HealthKit is `Fastino/Health/HealthKitProvider.swift`.
+
+Wiring: `com.apple.developer.healthkit` in `Fastino/Fastino.entitlements` and
+`NSHealthShareUsageDescription` in `Fastino/Info.plist` (the project's first
+privacy usage string). **Device builds also need the HealthKit capability
+enabled on the App ID in the developer portal** — a manual step outside the
+repo. Simulator builds work as-is.
+
+Not done, deliberately:
+
+- **Writing fasts to Health.** There is no fasting sample type in the SDK
+  (checked against `iPhoneOS26.5.sdk`); Mindful Minutes is the only thing other
+  apps use and it's a meditation type. Still a non-goal (§1).
+- **Background delivery / `HKObserverQuery`.** The screen fetches when it opens,
+  which is enough for a screen you visit.
+- **Watch.** No health data on the wrist (§4.7 — phone-sized screens stay on the
+  phone).
+
+Verified on the iPhone 17 simulator via `-tab stats -screen trends` (populated,
+light and dark) and `-noHealthData` (empty states). **The real HealthKit query
+path is not verifiable headlessly**: a simulator's Health store is empty and its
+permission sheet can't be tapped by `simctl`, so `-screen trends` uses
+`FixtureHealthProvider`. `HealthKitProvider` itself needs a device or a manual
+simulator session with sample data.
+
 ## Deferred (need additional Xcode targets — not added here)
 
 These require new build targets in `project.pbxproj`, which can't be added

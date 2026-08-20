@@ -14,6 +14,9 @@ struct StatsView: View {
     @Query(sort: \Fast.start, order: .reverse) private var fasts: [Fast]
     @Query(sort: \AppSettings.updatedAt, order: .reverse) private var settingsList: [AppSettings]
 
+    /// Screenshot-pass only — see `DebugLaunch`.
+    @State private var showsTrends = DebugLaunch.opensTrends
+
     /// The goal the flames are measured against: the running fast's snapshotted
     /// goal while one is open, otherwise the plan currently selected.
     private var referenceGoalHours: Int {
@@ -29,6 +32,11 @@ struct StatsView: View {
             content(summary)
         }
         .toolbar(.hidden, for: .navigationBar)
+        .navigationDestination(isPresented: $showsTrends) {
+            TrendsView(
+                provider: FixtureHealthProvider(series: DebugLaunch.hasNoHealthData ? .empty : nil)
+            )
+        }
     }
 
     private func content(_ summary: StatsSummary) -> some View {
@@ -57,19 +65,13 @@ struct StatsView: View {
 
                 WeekBars(bars: summary.last7DayBars, goalHours: referenceGoalHours)
 
+                NavigationLink { TrendsView() } label: {
+                    linkRow("Trends")
+                }
+                .buttonStyle(FlamePressStyle())
+
                 NavigationLink { HistoryView() } label: {
-                    HStack {
-                        Text("History")
-                            .font(.flame(16, .extraBold, relativeTo: .headline))
-                            .foregroundStyle(Theme.ink)
-                        Spacer()
-                        Text("→")
-                            .font(.flame(16, .extraBold, relativeTo: .headline))
-                            .foregroundStyle(Theme.accentText)
-                    }
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 15)
-                    .flameCard(radius: Radius.row)
+                    linkRow("History")
                 }
                 .buttonStyle(FlamePressStyle())
             }
@@ -77,6 +79,23 @@ struct StatsView: View {
             .padding(.top, FlameLayout.screenTopPadding)
             .flameTabBarClearance()
         }
+    }
+
+    /// The two navigation rows under the bento — same shape, so they read as a
+    /// pair rather than as one card and one afterthought.
+    private func linkRow(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.flame(16, .extraBold, relativeTo: .headline))
+                .foregroundStyle(Theme.ink)
+            Spacer()
+            Text("\u{2192}")
+                .font(.flame(16, .extraBold, relativeTo: .headline))
+                .foregroundStyle(Theme.accentText)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 15)
+        .flameCard(radius: Radius.row)
     }
 
     // MARK: Bento cards

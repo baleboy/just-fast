@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Fastino shows your sleep and weight alongside your fasting history, so you can see how they move together. The data stays on your device and is never uploaded.</string>
 	<key>INAlternativeAppNames</key>
 	<array>
 		<dict>

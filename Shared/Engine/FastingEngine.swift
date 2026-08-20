@@ -227,6 +227,61 @@ nonisolated enum FastingEngine {
     }
 
     /// Fasts that *ended* within the last `days` days (default 30), closed only.
+    /// The clock time eating *stopped* for each of the last `count` days — the
+    /// start of the fast credited to that day (§4.8).
+    ///
+    /// Two decisions make this comparable with everything else on the screen:
+    ///
+    /// - It's credited to the day the fast **ended**, like a goal day (§2) and
+    ///   like `lastDays`. So an evening's last meal shares a column with that
+    ///   night's sleep and with the bar for the fast it started — which is the
+    ///   whole reason to plot it.
+    /// - The value is **signed hours from that day's midnight**, so a 20:00 stop
+    ///   the evening before is −4 rather than 20. A plain 0–24 clock axis wraps,
+    ///   and wrapping puts 23:50 and 00:10 at opposite ends of the chart — the
+    ///   two times a late eater most needs to see as neighbours.
+    ///
+    /// Where several fasts ended on one day, this takes the longest, matching
+    /// `lastDays` so the dot and the bar always describe the same fast.
+    static func eatingStops(
+        _ fasts: [FastRecord],
+        now: Date,
+        timeZone: TimeZone,
+        count: Int = 30
+    ) -> [EatingStop] {
+        let cal = calendar(for: timeZone)
+        let today = dayNumber(of: now, timeZone: timeZone)
+
+        var longestByDay: [Int: FastRecord] = [:]
+        for fast in fasts {
+            guard let end = fast.end, let duration = fast.finalDuration else { continue }
+            let day = dayNumber(of: end, timeZone: timeZone)
+            if let existing = longestByDay[day], (existing.finalDuration ?? 0) >= duration { continue }
+            longestByDay[day] = fast
+        }
+        // A running fast has no end day yet, but it's the one you're living in:
+        // credit it to today, the same day its bar grows on.
+        if let open = openFast(fasts) {
+            let elapsed = open.duration(asOf: now)
+            if (longestByDay[today]?.finalDuration ?? 0) < elapsed {
+                longestByDay[today] = open
+            }
+        }
+
+        return (0..<count).reversed().compactMap { offset in
+            let day = today - offset
+            guard let fast = longestByDay[day] else { return nil }
+            let date = cal.startOfDay(
+                for: cal.date(byAdding: .day, value: -offset, to: now) ?? now
+            )
+            return EatingStop(
+                date: date,
+                stoppedAt: fast.start,
+                hoursFromMidnight: fast.start.timeIntervalSince(date) / 3600
+            )
+        }
+    }
+
     static func recentlyEndedFasts(
         _ fasts: [FastRecord],
         now: Date,
@@ -319,6 +374,20 @@ nonisolated struct DayBar: Equatable, Sendable, Identifiable {
     let goalMet: Bool
     /// Today, with a fast still running.
     let isInProgress: Bool
+
+    var id: Date { date }
+}
+
+/// When eating stopped on a given day — the start of the fast credited to it.
+nonisolated struct EatingStop: Equatable, Sendable, Identifiable {
+    /// Start of the day the fast *ended*, so this shares a column with that
+    /// day's fasting bar and that night's sleep.
+    let date: Date
+    /// The actual instant eating stopped.
+    let stoppedAt: Date
+    /// Signed hours from `date`'s midnight — negative for the evening before.
+    /// Deliberately unwrapped, so the series stays continuous across midnight.
+    let hoursFromMidnight: Double
 
     var id: Date { date }
 }

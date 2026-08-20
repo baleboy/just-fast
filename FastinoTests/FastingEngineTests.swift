@@ -573,3 +573,123 @@ private func approxEqual(_ a: TimeInterval?, _ b: TimeInterval, tol: TimeInterva
         }
     }
 }
+
+// MARK: - Eating stops (§4.8)
+
+@Suite("Eating stops")
+struct EatingStopTests {
+
+    private let now = date(2026, 7, 15, 18)
+
+    @Test func noFastsGivesNoStops() {
+        #expect(FastingEngine.eatingStops([], now: now, timeZone: utc, count: 30).isEmpty)
+    }
+
+    @Test func anEveningStopIsNegativeHoursFromTheEndDaysMidnight() {
+        // Stopped eating 20:00 on the 14th, ended 12:00 on the 15th. Credited
+        // to the 15th, four hours before its midnight.
+        let fasts = [fast(date(2026, 7, 14, 20), date(2026, 7, 15, 12))]
+        let stops = FastingEngine.eatingStops(fasts, now: now, timeZone: utc, count: 30)
+
+        #expect(stops.count == 1)
+        #expect(stops[0].date == date(2026, 7, 15))
+        #expect(stops[0].stoppedAt == date(2026, 7, 14, 20))
+        #expect(stops[0].hoursFromMidnight == -4)
+    }
+
+    @Test func aStopAfterMidnightIsPositive() {
+        let fasts = [fast(date(2026, 7, 15, 1, 30), date(2026, 7, 15, 18))]
+        let stops = FastingEngine.eatingStops(fasts, now: now, timeZone: utc, count: 30)
+
+        #expect(stops[0].hoursFromMidnight == 1.5)
+    }
+
+    @Test func theScaleIsContinuousAcrossMidnight() {
+        // 23:50 and 00:10 are twenty minutes apart and must read that way —
+        // this is the case a wrapped 0–24 axis ruins.
+        let fasts = [
+            fast(date(2026, 7, 13, 23, 50), date(2026, 7, 14, 12)),
+            fast(date(2026, 7, 15, 0, 10), date(2026, 7, 15, 12))
+        ]
+        let stops = FastingEngine.eatingStops(fasts, now: now, timeZone: utc, count: 30)
+        let tenMinutes: Double = 10.0 / 60
+        let gap: Double = stops[1].hoursFromMidnight - stops[0].hoursFromMidnight
+
+        #expect(abs(stops[0].hoursFromMidnight + tenMinutes) < 0.0001)
+        #expect(abs(stops[1].hoursFromMidnight - tenMinutes) < 0.0001)
+        #expect(abs(gap - tenMinutes * 2) < 0.0001)
+    }
+
+    @Test func stopsShareTheirColumnWithTheBarForTheSameFast() {
+        let fasts = [fast(date(2026, 7, 14, 20), date(2026, 7, 15, 12))]
+        let bars = FastingEngine.lastDays(fasts, now: now, timeZone: utc, count: 30)
+        let stops = FastingEngine.eatingStops(fasts, now: now, timeZone: utc, count: 30)
+
+        let barDate = bars.first { $0.duration > 0 }?.date
+        #expect(barDate == stops[0].date)
+    }
+
+    @Test func theLongestFastOfADayWins() {
+        // Same rule as `lastDays`, so the dot describes the fast the bar draws.
+        let fasts = [
+            fast(date(2026, 7, 15, 2), date(2026, 7, 15, 8)),
+            fast(date(2026, 7, 14, 18), date(2026, 7, 15, 14))
+        ]
+        let stops = FastingEngine.eatingStops(fasts, now: now, timeZone: utc, count: 30)
+
+        #expect(stops.count == 1)
+        #expect(stops[0].stoppedAt == date(2026, 7, 14, 18))
+    }
+
+    @Test func theOpenFastIsCreditedToToday() {
+        let fasts = [FastRecord(start: date(2026, 7, 14, 21), end: nil, goalHours: 16)]
+        let stops = FastingEngine.eatingStops(fasts, now: now, timeZone: utc, count: 30)
+
+        #expect(stops.count == 1)
+        #expect(stops[0].date == date(2026, 7, 15))
+        #expect(stops[0].hoursFromMidnight == -3)
+    }
+
+    @Test func daysWithoutAFastAreAbsentRatherThanZero() {
+        let fasts = [
+            fast(date(2026, 7, 11, 20), date(2026, 7, 12, 12)),
+            fast(date(2026, 7, 14, 20), date(2026, 7, 15, 12))
+        ]
+        let stops = FastingEngine.eatingStops(fasts, now: now, timeZone: utc, count: 30)
+
+        #expect(stops.map(\.date) == [date(2026, 7, 12), date(2026, 7, 15)])
+    }
+
+    @Test func onlyTheRequestedWindowIsReturned() {
+        let fasts = [
+            fast(date(2026, 7, 14, 20), date(2026, 7, 15, 12)),
+            fast(date(2026, 5, 1, 20), date(2026, 5, 2, 12))
+        ]
+        let stops = FastingEngine.eatingStops(fasts, now: now, timeZone: utc, count: 30)
+
+        #expect(stops.count == 1)
+    }
+
+    @Test func theOffsetIsMeasuredAgainstTheLocalMidnightSoDSTCannotSkewIt() {
+        // 2026-03-08, America/New_York: the clocks go forward at 02:00. A 20:00
+        // stop the evening before is still four hours before the 8th's midnight,
+        // even though the 8th is only 23 hours long.
+        let fasts = [fast(date(2026, 3, 7, 20, tz: ny), date(2026, 3, 8, 13, tz: ny))]
+        let stops = FastingEngine.eatingStops(
+            fasts, now: date(2026, 3, 8, 18, tz: ny), timeZone: ny, count: 30
+        )
+
+        #expect(stops[0].date == date(2026, 3, 8, tz: ny))
+        #expect(stops[0].hoursFromMidnight == -4)
+    }
+
+    @Test func theDayIsJudgedInTheGivenTimeZone() {
+        // Ended 02:00 UTC on the 15th, which is still the 14th in New York.
+        let fasts = [fast(date(2026, 7, 14, 10), date(2026, 7, 15, 2))]
+
+        #expect(FastingEngine.eatingStops(fasts, now: now, timeZone: utc, count: 30)[0].date
+                == date(2026, 7, 15))
+        #expect(FastingEngine.eatingStops(fasts, now: now, timeZone: ny, count: 30)[0].date
+                == date(2026, 7, 14, tz: ny))
+    }
+}

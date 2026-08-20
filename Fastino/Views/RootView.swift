@@ -36,6 +36,37 @@ enum FlameTab: String, CaseIterable, Identifiable {
     }
 }
 
+/// DEBUG-only launch flags for the screenshot pass. `simctl` can't tap, so a
+/// pushed screen is otherwise unreachable on a booted simulator.
+enum DebugLaunch {
+    /// `-screen trends` opens Stats straight through to the Trends screen,
+    /// backed by `FixtureHealthProvider` so it doesn't depend on what happens
+    /// to be in the simulator's (empty) Health store.
+    static var opensTrends: Bool {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "-screen"), index + 1 < arguments.count else {
+            return false
+        }
+        return arguments[index + 1].lowercased() == "trends"
+        #else
+        return false
+        #endif
+    }
+
+    /// `-noHealthData` makes that fixture return nothing, which is how the
+    /// empty state gets looked at — the real one can't be reached on a
+    /// simulator, whose Health store is empty and whose permission sheet
+    /// `simctl` can't tap.
+    static var hasNoHealthData: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-noHealthData")
+        #else
+        return false
+        #endif
+    }
+}
+
 struct RootView: View {
     /// Read straight from the store rather than passed in: the appearance
     /// override has to sit above everything so every tab — and the window's own

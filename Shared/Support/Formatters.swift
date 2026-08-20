@@ -35,6 +35,20 @@ nonisolated enum TimeFormat {
     /// Qualifies the day when the instant isn't today: a 16h fast started in the
     /// evening reaches its goal after midnight, so a bare "12:00" would be
     /// ambiguous exactly when it matters most.
+    /// A bare clock time from signed hours-since-midnight, in the user's 12/24h
+    /// convention — the axis labels on the "stopped eating" chart (§4.8), whose
+    /// values run negative through the evening before.
+    static func timeOfDay(hoursFromMidnight hours: Double, timeZone: TimeZone = .current) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let wrapped = (hours.truncatingRemainder(dividingBy: 24) + 24)
+            .truncatingRemainder(dividingBy: 24)
+        // Any midnight will do — only the time of day is rendered.
+        let midnight = calendar.startOfDay(for: Date(timeIntervalSince1970: 0))
+        let instant = midnight.addingTimeInterval(wrapped * 3600)
+        return instant.formatted(Date.FormatStyle(timeZone: timeZone).hour().minute())
+    }
+
     static func endLabel(_ date: Date, now: Date, timeZone: TimeZone = .current) -> String {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
