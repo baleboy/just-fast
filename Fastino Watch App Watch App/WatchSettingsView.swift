@@ -8,8 +8,13 @@
 //
 //  What's missing is missing on purpose. Appearance is absent because
 //  `Theme.dynamic` resolves statically to the dark palette on watchOS — there is
-//  no light appearance to choose. Sync status, data export and the about screen
-//  are phone-sized concerns.
+//  no light appearance to choose. Data export and the about screen are
+//  phone-sized concerns.
+//
+//  Sync is the exception to that rule. There is no *status readout* here, but a
+//  watch that isn't reaching iCloud says so, because the alternative is a watch
+//  that looks perfectly healthy while everything it records stays on it — and
+//  on a standalone install there is no phone screen to carry the warning.
 //
 //  Written as a plain `List` rather than the phone's card layout: watchOS's own
 //  list chrome is what users expect here, and the Flame tokens still carry the
@@ -43,6 +48,7 @@ private struct WatchSettingsForm: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(CloudSyncStatus.self) private var syncStatus
 
     @Query(sort: \Fast.start, order: .reverse) private var fasts: [Fast]
 
@@ -56,6 +62,7 @@ private struct WatchSettingsForm: View {
 
     var body: some View {
         List {
+            syncSection
             planSection
             reminderSection
             alertsSection
@@ -101,6 +108,29 @@ private struct WatchSettingsForm: View {
             // goal it began with however this resolves. Saying so is the whole
             // point of asking.
             Text("Your fast in progress keeps its current goal.")
+        }
+    }
+
+    // MARK: Sync
+
+    /// Shown only on a real failure, never while mirroring is still starting up
+    /// (§3) — a warning that flashes past on every launch would train the user
+    /// to ignore the one that matters.
+    @ViewBuilder
+    private var syncSection: some View {
+        if case .unavailable(let reason) = syncStatus.health {
+            Section {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("iCloud sync is off")
+                        .font(.flameFixed(15, .extraBold))
+                    // The fix is in the Watch app on the phone or in iOS
+                    // Settings, so there is nothing here to tap.
+                    Text(reason)
+                        .font(.flameFixed(11, .semibold))
+                        .foregroundStyle(Theme.muted)
+                }
+                .padding(.vertical, 2)
+            }
         }
     }
 
@@ -227,5 +257,7 @@ private struct WatchSettingsForm: View {
 #Preview {
     let container = AppContainer.inMemory()
     container.mainContext.insert(AppSettings())
-    return WatchSettingsView().modelContainer(container)
+    return WatchSettingsView()
+        .modelContainer(container)
+        .environment(CloudSyncStatus())
 }

@@ -311,7 +311,23 @@ Two invariants the app relied on don't survive sync, and both are handled in
   batches and a device can import a `start` before the matching `end` for the
   *same* fast — acting immediately would truncate an already-closed fast.
 
-`CloudSyncStatus` reports whether sync actually works. Note that
+**An import is not a write, and nothing used to notice it.** `FastStore` runs its
+two side effects — reconciling notifications and reloading the widget timeline —
+on the local write path, so a change that arrived from the *other* device ran
+neither. `@Query` republished, so the open screen healed itself and the bug hid
+behind that. The complication did not: `WidgetCenter` reloads are device-local
+(the phone reloading timelines never touches a watch face) and `FastingProvider`
+returns `policy: .never`, so a fast ended on the phone left the watch face
+counting up until the watch itself started or ended one. `Sync/RemoteChangeRefresher`
+closes it — it watches for a completed, successful `.import` event and re-runs
+both side effects — and both app entry points also call it on foreground, for
+imports that finished while no observer was alive.
+
+`CloudSyncStatus` reports whether sync actually works. It runs on the **watch**
+too, and `WatchSettingsView` shows the warning: the local-store fallback above
+is silent by design, which on a watch means one that looks entirely healthy while
+nothing it records ever leaves it — and a standalone install has no phone screen
+to carry the warning instead. Note that
 `ModelContainer.init` **succeeds even when the container is unprovisioned** —
 mirroring is configured asynchronously afterwards — so a launch-time flag proves
 nothing. It watches `NSPersistentCloudKitContainer.eventChangedNotification`
