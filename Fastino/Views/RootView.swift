@@ -2,14 +2,15 @@
 //  RootView.swift
 //  Fastino
 //
-//  Navigation shell: three tabs — the timer (home), Stats and Settings (§4.1,
-//  §4.3). The system tab bar is replaced by the Flame Friend floating white
-//  pill, so the switching is done here; each tab still owns its NavigationStack
-//  so pushes stay inside their tab (Stats → History).
+//  Navigation shell: four tabs — the timer (home), Stats, History and Settings
+//  (§4.1, §4.3). The timer's flame is lit while a fast runs, so the bar doubles
+//  as a status light from every screen. The system tab bar is replaced by the Flame Friend floating
+//  white pill, so the switching is done here; each tab still owns its
+//  NavigationStack so any push stays inside its tab.
 //
-//  All three tabs stay alive behind each other rather than being rebuilt on
-//  every switch: otherwise flicking to Settings and back would pop you out of
-//  History.
+//  All four tabs stay alive behind each other rather than being rebuilt on
+//  every switch, so a tab keeps its scroll position and any sheet it had open
+//  when you flick away and back.
 //
 
 import SwiftUI
@@ -18,12 +19,37 @@ import SwiftData
 enum FlameTab: String, CaseIterable, Identifiable {
     case timer = "Timer"
     case stats = "Stats"
+    case history = "History"
     case settings = "Settings"
 
     var id: String { rawValue }
 
+    /// The bar shows these rather than the names. Four words in one pill left
+    /// each of them too narrow to be legible at anything but the default text
+    /// size; a symbol says the same thing in a fixed amount of room. The name
+    /// is still there as the accessibility label.
+    ///
+    /// SF Symbols, not the mascot: these are 20pt chrome, and `FlameMascot` is
+    /// a face that needs room to read as one — its eyes would be 2pt here, and
+    /// half the time the icon is a flat muted tint, which is the state the
+    /// mascot is least itself in.
+    ///
+    /// The timer's flame **is lit only while a fast is running** — filled while
+    /// fasting, outline between fasts. The silhouette is the mascot's, and the
+    /// tab earns the one thing a mascot here couldn't do at this size: say
+    /// something true at a glance from any screen (§5).
+    func symbol(fasting: Bool) -> String {
+        switch self {
+        case .timer: fasting ? "flame.fill" : "flame"
+        case .stats: "chart.bar.fill"
+        case .history: "list.bullet"
+        case .settings: "gearshape.fill"
+        }
+    }
+
     /// Which tab the app opens on. Always Timer in a release build; `-tab stats`
-    /// lets the screenshot pass reach the other two, which simctl can't tap.
+    /// (or `history`, or `settings`) lets the screenshot pass reach the others,
+    /// which simctl can't tap.
     static var initial: FlameTab {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
@@ -92,13 +118,14 @@ struct RootView: View {
             ZStack {
                 tab(.timer) { TimerView() }
                 tab(.stats) { StatsView() }
+                tab(.history) { HistoryView() }
                 tab(.settings) { SettingsView() }
             }
 
             // The bar floats over the screens rather than insetting them, so each
             // one keeps its full-bleed background; they leave room for it with
             // `.flameTabBarClearance()`.
-            FlameTabBar(selection: $selection)
+            FlameTabBar(selection: $selection, isFasting: !isResting)
                 .padding(.bottom, 4)
         }
         .tint(Theme.accentText)
@@ -126,11 +153,37 @@ struct RootView: View {
     }
 
     /// Keeps every tab mounted; only the selected one is visible and tappable.
+    ///
+    /// Mounted means `onAppear` and `task` fire at launch for all four, which
+    /// matters for anything that asks the user for something: see
+    /// `flameTabIsVisible`.
     private func tab(_ tab: FlameTab, @ViewBuilder content: () -> some View) -> some View {
         NavigationStack { content() }
             .opacity(selection == tab ? 1 : 0)
             .allowsHitTesting(selection == tab)
             .accessibilityHidden(selection != tab)
+            .environment(\.flameTabIsVisible, selection == tab)
+    }
+}
+
+// MARK: - Tab visibility
+
+private struct FlameTabIsVisibleKey: EnvironmentKey {
+    /// True by default, so a preview or a sheet that isn't inside the tab shell
+    /// behaves as if it were on screen.
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    /// Whether the enclosing tab is the selected one.
+    ///
+    /// Every tab stays mounted, so `task` and `onAppear` fire for all four the
+    /// moment the app launches. Anything that prompts the user — the Health
+    /// read on Stats (§4.8) — has to wait for its tab to actually be looked at,
+    /// or the app asks for Health access on the splash screen.
+    var flameTabIsVisible: Bool {
+        get { self[FlameTabIsVisibleKey.self] }
+        set { self[FlameTabIsVisibleKey.self] = newValue }
     }
 }
 
@@ -138,7 +191,11 @@ struct RootView: View {
 
 struct FlameTabBar: View {
     @Binding var selection: FlameTab
+    /// Lights the timer's flame. Read from the store by `RootView`, so the bar
+    /// itself stays a dumb control.
+    var isFasting: Bool
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let palette = Theme.palette(for: colorScheme)
@@ -148,12 +205,18 @@ struct FlameTabBar: View {
                 Button {
                     selection = tab
                 } label: {
-                    Text(tab.rawValue)
-                        .font(.flame(13, isActive ? .extraBold : .bold, relativeTo: .footnote))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    Image(systemName: tab.symbol(fasting: isFasting))
+                        // Semibold rather than the app's usual 800: SF Symbols
+                        // are already dense at this size, and the fill/no-fill
+                        // pair plus the capsule carry the selected state.
+                        .font(.system(size: 17, weight: isActive ? .bold : .semibold))
+                        .symbolRenderingMode(.monochrome)
+                        // Fill and outline are the same flame, so it crossfades
+                        // rather than swapping.
+                        .contentTransition(.symbolEffect(.replace))
                         .foregroundStyle(isActive ? palette.accentText.color : palette.muted.color)
-                        .padding(.horizontal, 20)
+                        .frame(width: 30, height: 21)
+                        .padding(.horizontal, 14)
                         .padding(.vertical, 9)
                         .background {
                             if isActive {
@@ -162,26 +225,51 @@ struct FlameTabBar: View {
                         }
                 }
                 .buttonStyle(FlamePressStyle())
+                .accessibilityLabel(tab.rawValue)
+                // The lit flame is information, not decoration, so it can't be
+                // carried by the glyph alone.
+                .accessibilityValue(tab == .timer ? (isFasting ? "Fasting" : "Not fasting") : "")
                 .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : .isButton)
             }
         }
         .padding(6)
         .background(palette.elevated.color, in: .capsule)
         .shadow(color: palette.cardShadow.alpha(colorScheme == .dark ? 0.4 : 0.15).color, radius: 8, y: 4)
-        // Three labels side by side in one pill can't follow Dynamic Type all the
-        // way up without wrapping off-screen; it stops growing at the first
-        // accessibility size and the labels scale down from there.
+        // Four glyphs side by side still can't follow Dynamic Type all the way
+        // up without the pill running off-screen, so it stops growing at the
+        // first accessibility size. The glyphs are fixed-size anyway; this caps
+        // the padding around them.
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .animation(.snappy(duration: 0.22), value: selection)
+        // Lighting the flame is a state change the user just caused on another
+        // screen; it shouldn't snap. Skipped under Reduce Motion, like every
+        // other cue in the app (§5).
+        .animation(reduceMotion ? nil : .snappy(duration: 0.3), value: isFasting)
     }
 }
 
 extension View {
     /// Room at the bottom of a screen for the floating tab bar. Scaled, because
-    /// the bar's own label grows with Dynamic Type and a fixed number would let
-    /// it swallow the primary button at the larger sizes.
+    /// the bar's own padding grows with Dynamic Type and a fixed number would
+    /// let it swallow the primary button at the larger sizes.
     func flameTabBarClearance() -> some View {
         modifier(FlameTabBarClearance())
+    }
+}
+
+extension View {
+    /// The same room, as safe area rather than padding — for a `List`, whose
+    /// content can't be padded from the inside.
+    func flameTabBarSafeArea() -> some View {
+        modifier(FlameTabBarSafeArea())
+    }
+}
+
+private struct FlameTabBarSafeArea: ViewModifier {
+    @ScaledMetric(relativeTo: .footnote) private var clearance: CGFloat = 74
+
+    func body(content: Content) -> some View {
+        content.safeAreaPadding(.bottom, clearance)
     }
 }
 

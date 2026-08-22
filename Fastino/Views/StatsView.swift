@@ -3,8 +3,11 @@
 //  Fastino
 //
 //  The Stats screen (§4.3): a soft bento of streaks and records, the week as a
-//  row of little flames, and a link into full history. Everything is derived by
-//  the pure engine — nothing here is stored.
+//  row of bars, and the Apple Health panels (§4.8). Everything above those is
+//  derived by the pure engine — nothing here is stored.
+//
+//  The full list is its own tab rather than a push from here, so it's one tap
+//  from anywhere instead of two from one place.
 //
 
 import SwiftUI
@@ -57,11 +60,6 @@ struct StatsView: View {
 
                 WeekBars(bars: summary.last7DayBars, goalHours: referenceGoalHours)
 
-                NavigationLink { HistoryView() } label: {
-                    linkRow("History")
-                }
-                .buttonStyle(FlamePressStyle())
-
                 // Sleep and weight from Apple Health (§4.8), in line rather
                 // than behind a link — a screen you have to go looking for is
                 // one most people never see.
@@ -71,23 +69,6 @@ struct StatsView: View {
             .padding(.top, FlameLayout.screenTopPadding)
             .flameTabBarClearance()
         }
-    }
-
-    /// The navigation row under the bento, shaped like the cards above it so
-    /// it reads as part of the same stack.
-    private func linkRow(_ title: String) -> some View {
-        HStack {
-            Text(title)
-                .font(.flame(16, .extraBold, relativeTo: .headline))
-                .foregroundStyle(Theme.ink)
-            Spacer()
-            Text("\u{2192}")
-                .font(.flame(16, .extraBold, relativeTo: .headline))
-                .foregroundStyle(Theme.accentText)
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 15)
-        .flameCard(radius: Radius.row)
     }
 
     // MARK: Bento cards

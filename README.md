@@ -61,7 +61,7 @@ SwiftUI and SwiftData throughout, in three layers:
 
 **Persistence and a single write path** — `Store/FastStore.swift` is the only place a fast is ever mutated. The UI and the App Intents all go through it, so validation, notification scheduling and widget reloads happen identically no matter where a fast was started from. The SwiftData models keep every attribute defaulted and avoid unique constraints, which keeps the schema CloudKit-compatible.
 
-**Surfaces** — three tabs (Timer, Stats, Settings), plus the App Intents.
+**Surfaces** — four tabs (Timer, Stats, History, Settings), plus the App Intents.
 
 Tests use swift-testing (`@Suite` / `@Test`): 59 tests across 9 suites, all against the pure core.
 

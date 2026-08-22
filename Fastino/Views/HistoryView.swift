@@ -2,8 +2,12 @@
 //  HistoryView.swift
 //  Fastino
 //
-//  Reverse-chronological history grouped by month (§4.3). Tap a row to edit;
-//  the + adds a missed fast retroactively (§4.2).
+//  Reverse-chronological history grouped by month (§4.3), its own tab. Tap a
+//  row to edit; the + adds a missed fast retroactively (§4.2).
+//
+//  It draws its own title and + rather than using a navigation bar: it sits
+//  beside three other chrome-less tabs, and a system bar here would be the one
+//  screen with a different silhouette.
 //
 
 import SwiftUI
@@ -35,46 +39,70 @@ struct HistoryView: View {
     var body: some View {
         ZStack {
             FlameBackground(resting: true)
-            if fasts.isEmpty {
-                ContentUnavailableView(
-                    "No fasts yet",
-                    systemImage: "timer",
-                    description: Text("Your logged fasts will appear here.")
-                )
-            } else {
-                List {
-                    ForEach(sections, id: \.title) { section in
-                        Section(section.title) {
-                            ForEach(section.fasts) { fast in
-                                Button {
-                                    editing = fast
-                                } label: {
-                                    HistoryRow(fast: fast)
-                                }
-                                .listRowBackground(Theme.card)
-                            }
-                        }
-                    }
-                }
-                .scrollContentBackground(.hidden)
+            VStack(spacing: 0) {
+                header
+                content
             }
         }
-        .navigationTitle("History")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    addingManual = true
-                } label: {
-                    Image(systemName: "plus")
-                }
-            }
-        }
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(item: $editing) { fast in
             EditFastView(mode: .edit(fast))
         }
         .sheet(isPresented: $addingManual) {
             EditFastView(mode: .add)
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("History").flameScreenTitle()
+            Button {
+                addingManual = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(Theme.accentText)
+                    .frame(width: 38, height: 38)
+                    .background(Theme.card, in: .circle)
+            }
+            .buttonStyle(FlamePressStyle())
+            .accessibilityLabel("Add a fast")
+        }
+        .padding(.horizontal, FlameLayout.screenHorizontalPadding)
+        .padding(.top, FlameLayout.screenTopPadding)
+        .padding(.bottom, 8)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if fasts.isEmpty {
+            ContentUnavailableView(
+                "No fasts yet",
+                systemImage: "timer",
+                description: Text("Your logged fasts will appear here.")
+            )
+            .frame(maxHeight: .infinity)
+        } else {
+            List {
+                ForEach(sections, id: \.title) { section in
+                    Section(section.title) {
+                        ForEach(section.fasts) { fast in
+                            Button {
+                                editing = fast
+                            } label: {
+                                HistoryRow(fast: fast)
+                            }
+                            .listRowBackground(Theme.card)
+                        }
+                    }
+                }
+            }
+            .scrollContentBackground(.hidden)
+            // A List can't pad its own content the way the other screens pad
+            // the stack inside their ScrollView, so the room for the floating
+            // bar goes on as safe area — the last row still scrolls clear of
+            // it, rather than the list stopping short.
+            .flameTabBarSafeArea()
         }
     }
 }

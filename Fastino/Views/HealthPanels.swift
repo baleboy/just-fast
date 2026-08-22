@@ -38,6 +38,13 @@ struct HealthPanels: View {
 
     @State private var series: HealthSeries = .empty
     @State private var isLoading = true
+    @State private var hasLoaded = false
+
+    /// Stats is mounted from launch whether or not it's the selected tab, so
+    /// the read waits until it's actually on screen — otherwise the Health
+    /// permission sheet greets the user before they've seen the app (§4.8:
+    /// asked the first time these panels are looked at, never at launch).
+    @Environment(\.flameTabIsVisible) private var isVisible
 
     private static let dayCount = 30
 
@@ -77,7 +84,11 @@ struct HealthPanels: View {
             nightPanel
             footnote
         }
-        .task { await load() }
+        .task(id: isVisible) {
+            guard isVisible, !hasLoaded else { return }
+            hasLoaded = true
+            await load()
+        }
     }
 
     private func load() async {

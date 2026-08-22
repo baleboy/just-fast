@@ -36,9 +36,10 @@ for the handoff the screens were built from (approved: 4a, 6a, 5a, 5b light;
   delete) shared by UI and intents; drives notifications + widget reloads
 
 **UI (§4.1–4.3, §5)**
-- Three tabs — Timer / Stats / Settings — each with its own `NavigationStack`,
-  behind a custom floating pill tab bar (`RootView`); the three main screens
-  carry no navigation bar
+- Four tabs — Timer / Stats / History / Settings — each with its own
+  `NavigationStack`, behind a custom floating pill tab bar of SF Symbols
+  (`RootView`), whose flame is lit while a fast runs; no tab screen carries a
+  navigation bar
 - Timer screen with the **flame mascot** inside the **zone ring**
   (`Design/FlameMascot.swift`, `Views/FlameRing.swift`): gold/orange/pink bands,
   a pale preview of what's still ahead, and a white progress dot on the fill
