@@ -226,7 +226,62 @@ nonisolated enum FastingEngine {
         }
     }
 
-    /// Fasts that *ended* within the last `days` days (default 30), closed only.
+    /// The start of the calendar week a date falls in.
+    ///
+    /// Unlike the rest of this file's day arithmetic, this one is locale-aware:
+    /// which day a week starts on is a convention the user already has in
+    /// Settings, and a chart labelled "week of" that disagrees with their
+    /// calendar is just wrong. `firstWeekday` is a parameter so it can be
+    /// pinned in tests rather than inherited from whoever runs them.
+    static func weekStart(
+        of date: Date,
+        timeZone: TimeZone,
+        firstWeekday: Int = Calendar.current.firstWeekday
+    ) -> Date {
+        var cal = calendar(for: timeZone)
+        cal.firstWeekday = firstWeekday
+        return cal.dateInterval(of: .weekOfYear, for: date)?.start ?? cal.startOfDay(for: date)
+    }
+
+    /// Mean fast length per calendar week, oldest first — one value per week
+    /// that has at least one completed fast.
+    ///
+    /// This is what the trends panel's bars show, and it is genuinely weekly:
+    /// one bar per week, not a smoothed daily series. A rolling mean still
+    /// draws one column per day, so a fortnight of fasts reads as a fortnight
+    /// of columns however it was averaged — the picture said "daily" while the
+    /// caption said "weekly". A week is a week.
+    ///
+    /// Weekly at all because of what it's drawn against: weight answers over
+    /// weeks, and pairing one day's fast with a weight line invites reading
+    /// yesterday's dip as yesterday's fast.
+    ///
+    /// Averaged over the days that *have* a fast, not over all seven. So this
+    /// says "your fasts that week ran about this long", not "you fasted this
+    /// many hours a day".
+    /// A week with no fast at all is absent rather than zero — the gap is the
+    /// record of it.
+    ///
+    /// **The open fast is excluded.** It's a part-measurement, and counting it
+    /// would pull this week's average down by however much of the fast is still
+    /// to come.
+    static func weeklyAverageHours(
+        _ bars: [DayBar],
+        timeZone: TimeZone,
+        firstWeekday: Int = Calendar.current.firstWeekday
+    ) -> [WeekAverage] {
+        var totals: [Date: (sum: TimeInterval, count: Int)] = [:]
+        for bar in bars where bar.duration > 0 && !bar.isInProgress {
+            let week = weekStart(of: bar.date, timeZone: timeZone, firstWeekday: firstWeekday)
+            let running = totals[week] ?? (0, 0)
+            totals[week] = (running.sum + bar.duration, running.count + 1)
+        }
+
+        return totals
+            .map { WeekAverage(weekStart: $0.key, hours: $0.value.sum / Double($0.value.count) / 3600) }
+            .sorted { $0.weekStart < $1.weekStart }
+    }
+
     /// The clock time eating *stopped* for each of the last `count` days — the
     /// start of the fast credited to that day (§4.8).
     ///
@@ -376,6 +431,20 @@ nonisolated struct DayBar: Equatable, Sendable, Identifiable {
     let isInProgress: Bool
 
     var id: Date { date }
+}
+
+/// One week's fasting, averaged — a point of `weeklyAverageHours`.
+nonisolated struct WeekAverage: Equatable, Sendable, Identifiable {
+    /// Start of the calendar week, in the time zone the series was built for.
+    let weekStart: Date
+    /// Mean length in hours of that week's completed fasts.
+    let hours: Double
+
+    var id: Date { weekStart }
+
+    /// Midday Thursday-ish — the middle of the week, which is where a mark
+    /// standing for the whole week belongs on a date axis.
+    var midpoint: Date { weekStart.addingTimeInterval(3.5 * 86_400) }
 }
 
 /// When eating stopped on a given day — the start of the fast credited to it.

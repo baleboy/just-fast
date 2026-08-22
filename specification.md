@@ -82,7 +82,7 @@ One dedicated Stats screen, its own tab (§4.1), laid out as a 2×2 bento plus t
 - **History list**: reverse-chronological fasts with duration, goal met/missed badge; tap to edit. Infinite scroll, grouped by month.
 - **Export data** (Settings → General): every fast as a CSV — start, end, goal hours, duration, goal met — shared through the system share sheet.
 
-No charts on the Stats screen itself beyond the 7-day strip — the 30-day series live one push away, on Trends (§4.8).
+Beyond the 7-day strip, the only charts on Stats are the two Apple Health panels at the foot of the screen (§4.8) — in line rather than behind a link, because a screen you have to go looking for is one most people never see.
 
 ### 4.4 Notifications (local only)
 - **Goal reached**: scheduled at `start + goalHours` when a fast starts; cancelled if the fast is ended or edited before firing. Copy is celebratory, not clinical ("16 hours — goal reached 🎉 Keep going or break your fast whenever you're ready").
@@ -115,32 +115,38 @@ No Live Activities — by decision: the system ends a Live Activity after 8 hour
 - **Complications / Smart Stack widget**: progress ring with elapsed time; tappable to open the watch app. Corner and circular families at minimum.
 - Start/end actions on the watch sync to iPhone via CloudKit; iPhone widgets reflect the change on next reload (`WidgetCenter.reloadAllTimelines` triggered by the sync handler).
 
-### 4.8 Trends — Apple Health
+### 4.8 Apple Health panels (on Stats)
 
-A screen pushed from the Stats tab, next to History. Three panels stacked over one shared 30-day date axis: **fasting hours**, **when eating stopped and when sleep happened**, **weight**. Reading them against each other is the entire point, so they share the axis and nothing else — separate panels rather than one dual-axis plot, because hours and kilograms have no common scale and overlaying them invites reading a crossing as a correlation.
+The foot of the Stats screen, under the week strip and the History row. **Two dual-axis panels** over one shared 30-day date axis: **weight over fasting hours**, and **when eating stopped over how much sleep followed**. Each panel is one pairing the user can act on — a thing they chose (how long they fasted, when they stopped eating) and the thing worth reading it against (weight, sleep) — because reading them against each other is the entire point.
 
-- **The eating-stop/sleep overlay is the point of the screen.** When eating stopped is the one variable the user chooses, and sleep is the thing worth reading it against, so the two share a panel rather than sitting in separate ones.
-  - They can share it honestly because **sleep is drawn as *when*, not *how much*** — a bar from falling asleep to waking, against the same clock axis as the eating-stop dot. Both are times of day, so there is no second scale and no crossing to misread. What the reader is actually looking at is the gap between the dot and the bar above it: how long after the last meal sleep came.
-  - The bar is the night's **longest stretch of sleep**, not first-to-last: an afternoon nap would otherwise run it from last evening to this teatime. The total time asleep (naps and all) stays in the accessibility value.
+**Two panels, and no more.** There is no scatter plot, no fitted line, no computed headline telling the user what their data means: that reading was tried and cut for being more machinery than anyone wants on a fasting app's stats page. These panels show what happened; the user does the interpreting.
+
+Both panels obey the same contract, which is what keeps two scales honest: the **bars are the panel's own hours**, grounded at zero and read against the **right axis**; the **overlaid line or dots are read against the left**. The two series are never expressed in each other's units, so a crossing is meaningless by construction. Mechanically, each chart is drawn in its bars' scale and the second series is projected into it with every label converted back; only the hours axis draws grid lines, so a bar top can never be misread in the other axis' units. Kilograms and hours still have no common scale, and the panels don't pretend otherwise: nothing on this screen claims that one series explains the other.
+
+- **The eating-stop/sleep overlay is the point of the pair.** When eating stopped is the one variable the user chooses, and sleep is the thing worth reading it against, so the two share a panel rather than sitting in separate ones.
+  - The bar is **how much sleep** the night brought (right axis, hours); the dot over it is **when eating stopped** (left axis, clock time). Following the dots down while the bars grow is the whole question the panel asks.
+  - The clock axis is labelled at whole hours — `.automatic` on a borrowed scale lands on fractions of it, and "-3.5h" is not a time anyone recognises.
+  - The bar is the **total time asleep**, naps and all. (`SleepNight` still carries the night's longest stretch, and the accessibility value names it.)
   - The eating stop comes from our own data — the start of the fast credited to that day — not from Health.
-  - Everything on the panel is plotted as **signed hours from that day's midnight**, so a 20:00 stop the evening before is −4, not 20. A wrapped 0–24 axis would put 23:50 and 00:10 at opposite ends, which is exactly the pair a late eater needs to see as neighbours — and it would cut every night's bar in half at midnight.
+  - The clock axis is plotted as **signed hours from that day's midnight**, so a 20:00 stop the evening before is −4, not 20. A wrapped 0–24 axis would put 23:50 and 00:10 at opposite ends, which is exactly the pair a late eater needs to see as neighbours.
   - The stop is **a dot on a faint line**: stopping eating is an event at an instant, not a quantity that exists between readings the way weight does.
   - The user's **start-time anchor** (§4.1) is a dashed rule behind them — the time they meant to stop, so a dot above it reads as late. It's context, not data: if the anchor is so far from the actual times that including it would flatten the dots, it's dropped rather than allowed to squash the scale.
 - **Read-only.** Sleep (`sleepAnalysis`) and body mass (`bodyMass`), nothing written back (§1).
-- **Never stored.** HealthKit data may not be synced to iCloud and our container mirrors to CloudKit, so samples are fetched when the screen opens and held in memory only. No `@Model`, no app group, no cache on disk.
-- **Permission is asked on first open of this screen**, not at launch — the same rule as notifications (§4.4).
+- **Never stored.** HealthKit data may not be synced to iCloud and our container mirrors to CloudKit, so samples are fetched when Stats appears and held in memory only. No `@Model`, no app group, no cache on disk.
+- **Permission is asked the first time the Stats screen shows these panels**, not at launch — the same rule as notifications (§4.4).
 - **Denial is invisible to us.** HealthKit will not tell an app whether *reads* were granted; a refusal and an empty Health store look identical. So the empty state says "no data, and here is where to check", never "permission denied".
 - **Sleep is aggregated, not summed.** Health stores sleep as many short samples, and a user with two trackers gets two full sets covering the same night; the union is taken so every second counts once. `inBed` and `awake` are excluded.
-- **Every column is the day a fast ended** — the goal-day rule (§2), applied to all four panels. Sleep is credited to the day the user woke, and an evening's last meal to the morning it ends at, so one night's eating stop, fast length and sleep share a column. Where several fasts ended on a day, the longest wins, so the bar and the dot always describe the same fast.
-- **Weight is one point per day**, the last reading of that day. Displayed in the unit the user has chosen in Health.
+- **Every column is the day a fast ended** — the goal-day rule (§2), applied to both panels. Sleep is credited to the day the user woke, and an evening's last meal to the morning it ends at, so one night's eating stop, fast length and sleep share a column. Where several fasts ended on a day, the longest wins, so the bar and the dot always describe the same fast.
+- **Weight is one point per day**, the last reading of that day, in the unit the user has chosen in Health.
+- **This panel is by the calendar week: one bar per week, one weight point per week.** Weight answers over weeks, so pairing a single day's fast with it invites reading yesterday's dip as yesterday's fast. Both series are bucketed the same way, so a week's fasting and that week's weight are one column of the chart.
+  - **Weekly buckets, not a rolling daily mean.** A rolling mean still draws one column per day: a fortnight of fasts reads as a fortnight of columns however it was averaged, and the picture says "daily" while the caption says "weekly". A week is a week.
+  - Bars average the days that **have** a fast, not all seven, so a bar says "your fasts that week ran about this long", not "you fasted this many hours a day". A week with no fast at all is **absent**, not zero — the gap is the record of it.
+  - **The open fast is excluded** from the bars: it's a part-measurement, and counting it would pull this week's average down by however much of the fast is still to come. The running fast belongs to the timer screen; this one is a retrospective.
+  - The weight point is that week's **mean**, not its last reading — a single weigh-in lands wherever that morning's water did. A week without a reading is absent; the line bridges it. Below two weeks there's no trend to draw and the panel says so, rather than claiming there's no data.
+  - **The shared date axis is snapped out to whole weeks** and its grid lines fall on real week boundaries — the user's own first day of the week, not every seventh day from the window's edge. A week-wide bar hanging off a mid-week edge draws over the axis labels rather than clipping tidily, and both panels' grid lines have to agree. Thirty days of data, starting on a Monday (or a Sunday, as the user's calendar has it).
+- The weight axis is scaled to the month's own range with padding — a flat month must not render as a jagged line filling the frame. Ticks are chosen by how many land inside that range, not by its width, so a month straddling a single whole number still gets a scale rather than one lonely label.
+- **The fasting/weight panel shows shape, never evidence.** Even by the week, it is the two series side by side and nothing more. Weight moves on a slower clock than any one fast, and the app never says which way the arrow points.
 - **iOS only.** The watch shows no health data — it is a phone-sized screen (§4.7).
-
-**Patterns.** Below the timelines, two scatter plots answering the question the timelines only hint at: *do these move together?* One dot per observation, a fitted line, and a sentence that does the interpreting ("You sleep about 25m more on nights you stop eating before 20:00"). The timelines are the record; these are the reading of it.
-
-- **Stopping earlier vs sleep** — one dot per night, x = the eating stop on the same clock scale as the overlay above, y = hours asleep. The start-time anchor is the same dashed rule, so the two panels read as one idea.
-- **Fasting vs weight** — **weekly, over ~90 days**, not daily over 30. Body weight swings ±1 kg on water and glycogen and responds over weeks, so a day-against-day plot would be pure noise dressed as a finding. Each dot is one seven-day block: average fast hours against that block's weight change.
-- **Four refusals, all in the pure layer so they're testable.** Under 8 paired observations: no line, no headline. Under |r| = 0.2: "No clear pattern yet." Under a ten-minute (sleep) or 200-gram (weight) difference between the groups: the same, because a tidy relationship around a difference that small is still noise. And the fit line is drawn *only* when a headline survives all of these, so a weak result can never appear under a confident-looking line.
-- **`n` is always on screen**, and the copy never claims causation — a footnote says these are things that went together in the user's own data. Days missing either series are dropped, never zero-filled: a night the watch wasn't worn is absent data, not zero sleep.
 
 ## 5. Design direction
 

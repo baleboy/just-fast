@@ -104,31 +104,52 @@ work. Toggle stays a Shortcuts-app action for Back Tap.
 
 ## Built: Apple Health (§4.8)
 
-Read-only, iOS-only. `TrendsView` is pushed from the Stats tab, alongside
-History: fasting hours, an eating-stop/sleep overlay, and weight, stacked over
-one shared 30-day date axis. The only screen in the app using Swift
-Charts, styled entirely from `Theme`.
+Read-only, iOS-only. `HealthPanels` sits at the foot of `StatsView`, under the
+week strip and the History row — in line rather than behind a link of its own,
+because a screen you have to go looking for is one most people never see. Two
+dual-axis panels — weight over fasting hours, and the eating stop over hours
+asleep — on one shared 30-day date axis. The only Swift Charts in the app,
+styled entirely from `Theme`.
 
-The middle panel is the one the screen is built around: `FastingEngine.eatingStops`
-(our own data, not Health's) as dots, overlaid on each night's sleep drawn as a
-bar from asleep to awake. Both sit on one clock axis in signed hours from
-midnight, so there is no second scale. Covered by
+The fasting/weight panel is by the calendar week: `FastingEngine.weeklyAverageHours`
+for the bars (`WeeklyFastAverageTests`) and `WeightSeries.weeklyMean` for the
+line (`WeightSeriesTests.swift`), both bucketed by `FastingEngine.weekStart` —
+the one locale-aware date function in the engine, since the first day of the
+week is the user's own convention. Day-to-day weight is mostly water and one
+fast can't have moved a week's average. The shared date domain is snapped out to
+whole weeks so the weekly bars and both panels' grid lines land on real week
+boundaries.
+
+Both panels follow one contract: bars are that panel's hours against the
+trailing axis, the overlaid line or dots go against the leading one, and only
+the hours axis draws grid lines. Each chart is drawn in its bars' scale with
+the second series projected into it and every label converted back
+(`project`/`clock(at:)`, `project`/`mass(at:)`, labelled through
+`overlayAxis`).
+
+The night panel is the one the section is built around: `FastingEngine.eatingStops`
+(our own data, not Health's) as dots on a clock axis in signed hours from
+midnight, over bars of each night's total time asleep. Covered by
 `EatingStopTests` in `FastingEngineTests.swift`: the signed-hours scale staying
 continuous across midnight, the longest-fast-per-day rule matching `lastDays`,
 the open fast landing on today, DST, and time-zone bucketing.
 
-**Patterns** sits below the timelines: two scatter plots (eating stop vs hours
-asleep, weekly average fast vs weekly weight change) built by
-`Shared/Engine/Correlation.swift` and `Shared/Health/HealthCorrelation.swift`,
-covered by `FastinoTests/CorrelationTests.swift` — the fit, both pairings, and
-every branch of the wording. The weight pairing is weekly over 90 days, which is
-why `HealthProvider.series` takes a separate `weightDays` window.
+## Cut: the Patterns scatter plots
 
-`-seedHistory` seeds three months of fasts, which the Patterns cards need before
-they can say anything; its stop times deliberately track the same wobble
-`FixtureHealthProvider` uses, so the cards show a finding rather than noise.
-Both sides are invented data — making them agree is what makes the screen
-reviewable at all.
+A Trends sub-screen once sat behind a link on Stats, with two scatter plots
+under the timelines (eating stop vs hours asleep, weekly average fast vs weekly
+weight change), a fitted line, and a generated headline. It was cut as more
+machinery than a fasting app's stats page wants — along with
+`Shared/Engine/Correlation.swift`, `Shared/Health/HealthCorrelation.swift`,
+`CorrelationTests.swift`, and the separate 90-day `weightDays` window on
+`HealthProvider.series` that only the weight pairing needed. The panels moved to
+Stats. Nothing in the app computes a correlation any more, by design: the panels
+show what happened and the user does the interpreting.
+
+`-seedHistory` seeds three months of fasts; its stop times deliberately track
+the same wobble `FixtureHealthProvider` uses, so the panels line up rather than
+looking like two unrelated series. Both sides are invented data — making them
+agree is what makes the section reviewable at all.
 
 `DemoSeeder`'s completed fasts now end at noon rather than at whatever time the
 seed runs, so the seeded schedule reads like a real 16:8 (stop just before 20:00,
@@ -152,16 +173,18 @@ Not done, deliberately:
 - **Writing fasts to Health.** There is no fasting sample type in the SDK
   (checked against `iPhoneOS26.5.sdk`); Mindful Minutes is the only thing other
   apps use and it's a meditation type. Still a non-goal (§1).
-- **Background delivery / `HKObserverQuery`.** The screen fetches when it opens,
-  which is enough for a screen you visit.
+- **Background delivery / `HKObserverQuery`.** The panels fetch when Stats
+  appears, which is enough for a tab you visit.
 - **Watch.** No health data on the wrist (§4.7 — phone-sized screens stay on the
   phone).
 
-Verified on the iPhone 17 simulator via `-tab stats -screen trends` (populated,
+Verified on the iPhone 17 simulator via `-tab stats -fixtureHealth` (populated,
 light and dark) and `-noHealthData` (empty states). **The real HealthKit query
 path is not verifiable headlessly**: a simulator's Health store is empty and its
-permission sheet can't be tapped by `simctl`, so `-screen trends` uses
-`FixtureHealthProvider`. `HealthKitProvider` itself needs a device or a manual
+permission sheet can't be tapped by `simctl`, so `-fixtureHealth` uses
+`FixtureHealthProvider`. The panels sit below the fold and `simctl` can't
+scroll, so seeing all of them means temporarily hoisting `HealthPanels` to the
+top of `StatsView.content`. `HealthKitProvider` itself needs a device or a manual
 simulator session with sample data.
 
 ## Deferred (need additional Xcode targets — not added here)

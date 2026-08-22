@@ -36,34 +36,27 @@ enum FlameTab: String, CaseIterable, Identifiable {
     }
 }
 
-/// DEBUG-only launch flags for the screenshot pass. `simctl` can't tap, so a
-/// pushed screen is otherwise unreachable on a booted simulator.
+/// DEBUG-only launch flags for the screenshot pass. `simctl` can't tap, so
+/// anything behind an interaction is otherwise unreachable on a booted
+/// simulator.
 enum DebugLaunch {
-    /// `-screen trends` opens Stats straight through to the Trends screen,
-    /// backed by `FixtureHealthProvider` so it doesn't depend on what happens
-    /// to be in the simulator's (empty) Health store.
-    static var opensTrends: Bool {
+    /// What the Stats screen's Health panels read from.
+    ///
+    /// `-fixtureHealth` swaps in `FixtureHealthProvider`, because a simulator's
+    /// Health store is empty and `simctl` can't tap the permission sheet, so
+    /// the panels are otherwise unlookable-at on a booted simulator.
+    /// `-noHealthData` makes that fixture return nothing, which is how the
+    /// empty states get looked at. Release builds always get the real one.
+    static var healthProvider: any HealthProvider {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
-        guard let index = arguments.firstIndex(of: "-screen"), index + 1 < arguments.count else {
-            return false
+        if arguments.contains("-fixtureHealth") || arguments.contains("-noHealthData") {
+            return FixtureHealthProvider(
+                series: arguments.contains("-noHealthData") ? .empty : nil
+            )
         }
-        return arguments[index + 1].lowercased() == "trends"
-        #else
-        return false
         #endif
-    }
-
-    /// `-noHealthData` makes that fixture return nothing, which is how the
-    /// empty state gets looked at — the real one can't be reached on a
-    /// simulator, whose Health store is empty and whose permission sheet
-    /// `simctl` can't tap.
-    static var hasNoHealthData: Bool {
-        #if DEBUG
-        return ProcessInfo.processInfo.arguments.contains("-noHealthData")
-        #else
-        return false
-        #endif
+        return HealthKitProvider.shared
     }
 }
 

@@ -63,7 +63,7 @@ nonisolated final class HealthKitProvider: HealthProvider {
 
     // MARK: Reading
 
-    func series(days: Int, weightDays: Int, now: Date, timeZone: TimeZone) async -> HealthSeries {
+    func series(days: Int, now: Date, timeZone: TimeZone) async -> HealthSeries {
         guard isAvailable else { return .empty }
 
         var cal = Calendar(identifier: .gregorian)
@@ -72,13 +72,8 @@ nonisolated final class HealthKitProvider: HealthProvider {
         // Sleep for "today" began last night, so the window opens a day early;
         // the aggregator credits each stretch to the day it ended on anyway.
         let sleepStart = cal.date(byAdding: .day, value: -1, to: start) ?? start
-        // Weight reaches further back — see the protocol.
-        let weightStart = cal.startOfDay(
-            for: cal.date(byAdding: .day, value: -(max(days, weightDays) - 1), to: now) ?? now
-        )
-
         async let spans = sleepSpans(from: sleepStart, to: now)
-        async let points = weightPoints(from: weightStart, to: now)
+        async let points = weightPoints(from: start, to: now)
         async let unit = preferredMassUnit()
 
         return await HealthSeries(

@@ -59,15 +59,9 @@ nonisolated protocol HealthProvider: Sendable {
     @discardableResult
     func requestAccess() async -> Bool
 
-    /// Sleep and weight, already aggregated to one entry per day and sorted
-    /// oldest first.
-    ///
-    /// The two windows differ because the two questions do. Sleep is read
-    /// against the 30-day timeline; weight also feeds the weekly
-    /// fasting-vs-weight pairing (§4.8), which needs a couple of months before
-    /// it can say anything, since body weight moves on a slower clock than a
-    /// single fast.
-    func series(days: Int, weightDays: Int, now: Date, timeZone: TimeZone) async -> HealthSeries
+    /// Sleep and weight over the same window, already aggregated to one entry
+    /// per day and sorted oldest first.
+    func series(days: Int, now: Date, timeZone: TimeZone) async -> HealthSeries
 }
 
 /// Deterministic stand-in for previews and tests. Generates a plausible month
@@ -82,7 +76,7 @@ nonisolated struct FixtureHealthProvider: HealthProvider {
     @discardableResult
     func requestAccess() async -> Bool { true }
 
-    func series(days: Int, weightDays: Int, now: Date, timeZone: TimeZone) async -> HealthSeries {
+    func series(days: Int, now: Date, timeZone: TimeZone) async -> HealthSeries {
         if let series { return series }
 
         var cal = Calendar(identifier: .gregorian)
@@ -91,13 +85,13 @@ nonisolated struct FixtureHealthProvider: HealthProvider {
         var nights: [SleepNight] = []
         var weights: [WeightPoint] = []
 
-        for offset in (0..<max(days, weightDays)).reversed() {
+        for offset in (0..<days).reversed() {
             guard let day = cal.date(byAdding: .day, value: -offset, to: now) else { continue }
             let date = cal.startOfDay(for: day)
             let wobble = sin(Double(offset) * 0.7)
 
             // A gap every eleventh day, so the empty-day handling is visible.
-            if offset < days, offset % 11 != 3 {
+            if offset % 11 != 3 {
                 // Asleep around 23:15 the evening before, with the night's
                 // length wobbling, and a little fragmentation on top.
                 let onset = -0.75 + wobble * 0.45
@@ -113,9 +107,9 @@ nonisolated struct FixtureHealthProvider: HealthProvider {
                 )
             }
             if offset % 3 == 0 {
-                // A slow drift down, so the weekly pairing has something to
-                // find, plus enough wobble that it isn't a straight line.
-                let drift = Double(max(days, weightDays) - offset) * 0.02
+                // A slow drift down, so the weekly means have something to
+                // show, plus enough wobble that it isn't a straight line.
+                let drift = Double(days - offset) * 0.02
                 weights.append(WeightPoint(date: date, kilograms: 79.6 - drift + wobble * 0.25))
             }
         }

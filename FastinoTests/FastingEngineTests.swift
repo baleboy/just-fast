@@ -693,3 +693,124 @@ struct EatingStopTests {
                 == date(2026, 7, 14, tz: ny))
     }
 }
+
+// MARK: - Weekly average of fasting hours
+
+/// The weekly series the Trends panel's bars show (§4.8). One bar per week, on
+/// purpose: a rolling daily mean still draws one column per day, so the picture
+/// said "daily" while the caption said "weekly".
+@Suite("Weekly fast average")
+struct WeeklyFastAverageTests {
+
+    /// Pinned rather than inherited from whoever runs the tests — the app's
+    /// default comes from the user's own calendar.
+    private let monday = 2
+
+    private func bar(_ date: Date, hours: Double, inProgress: Bool = false) -> DayBar {
+        DayBar(
+            date: date,
+            duration: hours * 3600,
+            goalMet: hours >= 16,
+            isInProgress: inProgress
+        )
+    }
+
+    private func weekly(_ bars: [DayBar], tz: TimeZone = utc) -> [WeekAverage] {
+        FastingEngine.weeklyAverageHours(bars, timeZone: tz, firstWeekday: monday)
+    }
+
+    @Test("No fasts, no bars")
+    func empty() {
+        #expect(weekly([]).isEmpty)
+    }
+
+    @Test("A week of fasts collapses to one bar, at that week's mean")
+    func oneBarPerWeek() {
+        // Mon 2 – Sun 8 March 2026.
+        let bars = (0..<7).map { bar(date(2026, 3, 2 + $0), hours: 14 + Double($0)) }
+        let mean = weekly(bars)
+
+        #expect(mean.count == 1)
+        #expect(mean[0].weekStart == date(2026, 3, 2))
+        #expect(abs(mean[0].hours - (14.0 + 15 + 16 + 17 + 18 + 19 + 20) / 7) < 0.0001)
+    }
+
+    @Test("The bucket boundary is the week's first day, not seven days from the first fast")
+    func weeksAreCalendarWeeks() {
+        // Sunday 8 March closes one week; Monday 9 March opens the next.
+        let mean = weekly([
+            bar(date(2026, 3, 8), hours: 12),
+            bar(date(2026, 3, 9), hours: 20)
+        ])
+
+        #expect(mean.count == 2)
+        #expect(mean.map(\.weekStart) == [date(2026, 3, 2), date(2026, 3, 9)])
+        #expect(abs(mean[0].hours - 12) < 0.0001)
+        #expect(abs(mean[1].hours - 20) < 0.0001)
+    }
+
+    @Test("Averaged over the days that fasted, not over all seven")
+    func daysOffAreNotZeros() {
+        let mean = weekly([
+            bar(date(2026, 3, 2), hours: 16),
+            bar(date(2026, 3, 3), hours: 0),
+            bar(date(2026, 3, 4), hours: 16)
+        ])
+
+        // 16, not 32/7.
+        #expect(mean.count == 1)
+        #expect(abs(mean[0].hours - 16) < 0.0001)
+    }
+
+    @Test("A week with no fast at all is absent, not zero")
+    func emptyWeeksAreAbsent() {
+        let mean = weekly([
+            bar(date(2026, 3, 2), hours: 16),
+            bar(date(2026, 3, 16), hours: 16)
+        ])
+
+        #expect(mean.map(\.weekStart) == [date(2026, 3, 2), date(2026, 3, 16)])
+    }
+
+    @Test("The open fast is left out — it's a part-measurement")
+    func openFastIsExcluded() {
+        let mean = weekly([
+            bar(date(2026, 3, 2), hours: 16),
+            bar(date(2026, 3, 3), hours: 16),
+            bar(date(2026, 3, 4), hours: 3, inProgress: true)
+        ])
+
+        // Had the 3h partial counted, this would be 11.67.
+        #expect(abs(mean[0].hours - 16) < 0.0001)
+    }
+
+    @Test("Weeks come back oldest first, whatever order the days arrive in")
+    func sorted() {
+        let mean = weekly([
+            bar(date(2026, 3, 16), hours: 18),
+            bar(date(2026, 3, 2), hours: 14),
+            bar(date(2026, 3, 9), hours: 16)
+        ])
+
+        #expect(mean.map(\.weekStart) == [date(2026, 3, 2), date(2026, 3, 9), date(2026, 3, 16)])
+    }
+
+    @Test("A week with a DST change is still one week")
+    func dstWeek() {
+        // America/New_York springs forward on Sunday 8 March 2026 — the week of
+        // Monday 2 March is 167 hours long.
+        let bars = (0..<7).map { bar(date(2026, 3, 2 + $0, tz: ny), hours: 16) }
+        let mean = FastingEngine.weeklyAverageHours(bars, timeZone: ny, firstWeekday: monday)
+
+        #expect(mean.count == 1)
+        #expect(abs(mean[0].hours - 16) < 0.0001)
+    }
+
+    @Test("The midpoint a bar's mark sits on is mid-week")
+    func midpoint() {
+        let mean = weekly([bar(date(2026, 3, 2), hours: 16)])
+
+        #expect(mean[0].midpoint > date(2026, 3, 5))
+        #expect(mean[0].midpoint < date(2026, 3, 6))
+    }
+}

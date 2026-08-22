@@ -22,12 +22,12 @@ enum DemoSeeder {
     }
 
     /// `-seedHistory` extends the seed to three months of fasts, which is what
-    /// the Trends Patterns cards (§4.8) need before they have anything to say —
-    /// four days can only ever render "not enough nights yet".
+    /// the Stats screen's Health panels (§4.8) need before their weekly bars
+    /// and 30-day columns show anything but a stub.
     ///
     /// The stop times deliberately track the same wobble
-    /// `FixtureHealthProvider` uses for sleep and weight, so the correlation
-    /// cards show a *finding* rather than noise. Both sides are invented data;
+    /// `FixtureHealthProvider` uses for sleep and weight, so the two series on
+    /// a panel line up rather than looking unrelated. Both sides are invented data;
     /// making them agree is what makes the screen reviewable.
     static var seedsHistory: Bool {
         #if DEBUG
@@ -63,8 +63,8 @@ enum DemoSeeder {
         // Each ends at noon rather than at whatever time the seed happens to
         // run, so the schedule reads like a real 16:8 — stop eating just before
         // 20:00, break the fast at midday. Anchoring to `now` instead put every
-        // fast's start in the small hours, which the Trends "stopped eating"
-        // chart (§4.8) shows up immediately. The calendar days, and so the
+        // fast's start in the small hours, which the "stopped eating"
+        // panel (§4.8) shows up immediately. The calendar days, and so the
         // streak and the week strip, are unaffected.
         for daysAgo in 1...(seedsHistory ? 89 : 4) {
             // A couple of missed days a month, so the gaps are exercised.

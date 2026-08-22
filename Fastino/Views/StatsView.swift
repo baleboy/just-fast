@@ -14,9 +14,6 @@ struct StatsView: View {
     @Query(sort: \Fast.start, order: .reverse) private var fasts: [Fast]
     @Query(sort: \AppSettings.updatedAt, order: .reverse) private var settingsList: [AppSettings]
 
-    /// Screenshot-pass only — see `DebugLaunch`.
-    @State private var showsTrends = DebugLaunch.opensTrends
-
     /// The goal the flames are measured against: the running fast's snapshotted
     /// goal while one is open, otherwise the plan currently selected.
     private var referenceGoalHours: Int {
@@ -32,11 +29,6 @@ struct StatsView: View {
             content(summary)
         }
         .toolbar(.hidden, for: .navigationBar)
-        .navigationDestination(isPresented: $showsTrends) {
-            TrendsView(
-                provider: FixtureHealthProvider(series: DebugLaunch.hasNoHealthData ? .empty : nil)
-            )
-        }
     }
 
     private func content(_ summary: StatsSummary) -> some View {
@@ -65,15 +57,15 @@ struct StatsView: View {
 
                 WeekBars(bars: summary.last7DayBars, goalHours: referenceGoalHours)
 
-                NavigationLink { TrendsView() } label: {
-                    linkRow("Trends")
-                }
-                .buttonStyle(FlamePressStyle())
-
                 NavigationLink { HistoryView() } label: {
                     linkRow("History")
                 }
                 .buttonStyle(FlamePressStyle())
+
+                // Sleep and weight from Apple Health (§4.8), in line rather
+                // than behind a link — a screen you have to go looking for is
+                // one most people never see.
+                HealthPanels(provider: DebugLaunch.healthProvider)
             }
             .padding(.horizontal, FlameLayout.screenHorizontalPadding)
             .padding(.top, FlameLayout.screenTopPadding)
@@ -81,8 +73,8 @@ struct StatsView: View {
         }
     }
 
-    /// The two navigation rows under the bento — same shape, so they read as a
-    /// pair rather than as one card and one afterthought.
+    /// The navigation row under the bento, shaped like the cards above it so
+    /// it reads as part of the same stack.
     private func linkRow(_ title: String) -> some View {
         HStack {
             Text(title)
