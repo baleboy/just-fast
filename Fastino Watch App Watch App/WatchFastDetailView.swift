@@ -137,7 +137,7 @@ struct WatchFastDetailView: View {
             // An open fast can't have started in the future; a closed one can't
             // have started after it ended. Overlap with the previous fast is
             // left to FastValidation, which knows about the other records.
-            latest: fast.end ?? Date()
+            latest: fast.end.map(TimeBound.at) ?? .now
         ) { newStart in
             save(start: newStart, end: fast.end)
         }
@@ -147,8 +147,8 @@ struct WatchFastDetailView: View {
         WatchTimeEditView(
             title: "End",
             initial: currentEnd,
-            earliest: fast.start,
-            latest: Date()
+            earliest: .at(fast.start),
+            latest: .now
         ) { newEnd in
             save(start: fast.start, end: newEnd)
         }

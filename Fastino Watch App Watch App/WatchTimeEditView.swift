@@ -11,6 +11,10 @@
 //  upper bound by construction. Here the recorded time is already wrong in
 //  whichever direction, so offering only one is a coin flip.
 //
+//  "Now" is the one absolute jump, for the case the chips are clumsy at: you
+//  ended a fast, then ate, and the true end is this moment rather than some
+//  multiple of fifteen minutes from the wrong one.
+//
 //  `earliest`/`latest` are the caller's business — an end can't precede its
 //  start or land in the future, a start can't follow its end. Chips that would
 //  leave the range disable rather than silently clamp, so the bound is visible
@@ -19,10 +23,26 @@
 
 import SwiftUI
 
+/// A bound on an editable time. `.now` is deliberately not a `Date`: the
+/// callers' real rule is "not in the future", and a `Date()` captured when the
+/// screen was pushed goes stale while you sit on it — enough to make a "Now"
+/// button refuse the very instant it names.
+enum TimeBound {
+    case at(Date)
+    case now
+
+    var date: Date {
+        switch self {
+        case .at(let date): date
+        case .now: Date()
+        }
+    }
+}
+
 struct WatchTimeEditView: View {
     let title: String
-    let earliest: Date?
-    let latest: Date?
+    let earliest: TimeBound?
+    let latest: TimeBound?
     /// Returns an error message to display, or nil on success.
     let onConfirm: (Date) -> String?
 
@@ -43,8 +63,8 @@ struct WatchTimeEditView: View {
     init(
         title: String,
         initial: Date,
-        earliest: Date? = nil,
-        latest: Date? = nil,
+        earliest: TimeBound? = nil,
+        latest: TimeBound? = nil,
         onConfirm: @escaping (Date) -> String?
     ) {
         self.title = title
@@ -59,6 +79,7 @@ struct WatchTimeEditView: View {
             VStack(spacing: 10) {
                 header
                 chips
+                nowButton
                 // No .font() — the digit wells are sized to the system font's
                 // metrics and Baloo 2 clips inside them.
                 picker
@@ -118,16 +139,39 @@ struct WatchTimeEditView: View {
         }
     }
 
+    /// The chips nudge relative to what's already there; this jumps straight to
+    /// now, which is the correction you want after ending a fast and then
+    /// eating. Disabled — not hidden — when now is out of the caller's range,
+    /// e.g. the start of a fast that has already ended.
+    @ViewBuilder
+    private var nowButton: some View {
+        let allowed = isInRange(Date())
+        Button {
+            date = Date()
+        } label: {
+            Text("Now")
+                .font(.flameFixed(13, .extraBold))
+                .foregroundStyle(allowed ? Theme.accentText : Theme.muted)
+                .frame(maxWidth: .infinity, minHeight: 30)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill((allowed ? Theme.accentText : Theme.muted).opacity(0.18))
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!allowed)
+    }
+
     private func isInRange(_ candidate: Date) -> Bool {
-        if let earliest, candidate < earliest { return false }
-        if let latest, candidate > latest { return false }
+        if let earliest, candidate < earliest.date { return false }
+        if let latest, candidate > latest.date { return false }
         return true
     }
 
     private func confirm() {
         guard isInRange(date) else {
             // Reachable via the picker, which has no bounds of its own.
-            if let latest, date > latest {
+            if let latest, date > latest.date {
                 errorMessage = "That’s later than it can be."
             } else {
                 errorMessage = "That’s earlier than it can be."
@@ -148,7 +192,7 @@ struct WatchTimeEditView: View {
         WatchTimeEditView(
             title: "Start",
             initial: Date().addingTimeInterval(-9 * 3600),
-            latest: Date()
+            latest: .now
         ) { _ in nil }
     }
 }

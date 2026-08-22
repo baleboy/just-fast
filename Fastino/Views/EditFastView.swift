@@ -57,9 +57,11 @@ struct EditFastView: View {
             Form {
                 Section {
                     DatePicker("Start", selection: $start, displayedComponents: [.date, .hourAndMinute])
+                    nowRow("Set start to now", isEnabled: isOpen || Date() <= end) { start = Date() }
                     Toggle("Still in progress", isOn: $isOpen)
                     if !isOpen {
                         DatePicker("End", selection: $end, in: start..., displayedComponents: [.date, .hourAndMinute])
+                        nowRow("Set end to now", isEnabled: Date() >= start) { end = Date() }
                     }
                 }
 
@@ -95,6 +97,15 @@ struct EditFastView: View {
                 Button("Delete", role: .destructive) { deleteFast() }
             }
         }
+    }
+
+    /// Reaching a time picker's wheels to say "just now" is several taps for
+    /// the app's most common correction — you ended a fast, then ate. The
+    /// button is disabled rather than hidden when now would invert the pair,
+    /// so the bound stays visible instead of the row silently vanishing.
+    private func nowRow(_ label: String, isEnabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(label, action: action)
+            .disabled(!isEnabled)
     }
 
     private func save() {
