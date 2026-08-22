@@ -309,4 +309,7 @@ enum Radius {
     static let row: CGFloat = 22
     static let smallCard: CGFloat = 20
     static let button: CGFloat = 26
+    /// Rows on the watch are half the height of the phone's, so the phone radii
+    /// round them all the way into capsules. This keeps them reading as cards.
+    static let watchRow: CGFloat = 12
 }

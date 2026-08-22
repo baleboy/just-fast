@@ -110,7 +110,22 @@ struct WatchFastDetailView: View {
                     .font(.flameFixed(14, .extraBold))
                     .foregroundStyle(Theme.ink)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            // watchOS gives a NavigationLink a full capsule, which reads as a
+            // big pill button rather than a row of information. These are
+            // records you tap to correct, so they get a card's corner radius
+            // instead — still tappable, no longer shouting.
+            // The dark card is a 7% film, which is faint against the watch's
+            // black, so the hairline is what actually draws the edge.
+            .background(Theme.card, in: .rect(cornerRadius: Radius.watchRow))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.watchRow)
+                    .strokeBorder(Theme.divider, lineWidth: 1)
+            }
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: Editors
