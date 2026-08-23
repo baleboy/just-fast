@@ -197,6 +197,28 @@ struct FastStore {
         reloadWidgets()
     }
 
+    /// Re-goal the fast in progress, because the user asked for it in as many
+    /// words (§4.1).
+    ///
+    /// `goalHours`/`protocolID` are snapshotted at start and a Settings change
+    /// still never reaches back on its own — the rule is unchanged. This is the
+    /// one deliberate exception: the plan dialog offers it explicitly, and
+    /// nothing else may call this. It is the only path by which a running
+    /// fast's goal moves.
+    ///
+    /// No validation: the goal has no bearing on whether the interval itself is
+    /// legal. Reconciling is the whole job — the goal alert and both milestones
+    /// are derived from `goalHours` and would otherwise stay armed for the goal
+    /// the user just replaced. A new goal already behind the fast simply arms
+    /// nothing (`scheduleGoalNotification` drops a fire date in the past).
+    func applyProtocol(_ proto: FastingProtocol, to fast: Fast) throws {
+        fast.goalHours = proto.goalHours
+        fast.protocolID = proto.rawValue
+        try context.save()
+        reconcileNotifications()
+        reloadWidgets()
+    }
+
     func delete(_ fast: Fast) {
         let id = fast.id
         context.delete(fast)

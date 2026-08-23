@@ -390,6 +390,42 @@ but was judged not worth it yet: the targets set
 `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` and the code leans on it, so a
 package means replicating that default and making ~1,900 lines `public`.
 
+## Changing plan mid-fast asks about the running fast
+
+Switching protocol while a fast is running used to show a one-button dialog
+announcing that the running fast kept its old goal. That is the wrong shape:
+someone who changes plan mid-fast usually means *this* fast, and the goal is
+what the ring fills towards, what the alert fires on and what the fast is
+judged against when it ends. The dialog now offers both outcomes, each naming
+its hours — "Change this fast to 20h too" / "Keep this fast at 16h" — over a
+line of context ("You're 10h 3m into a 16-hour fast"). Both change the plan;
+they differ only in whether the fast in progress comes along. On the watch
+too, where it matters more: a standalone install has no phone screen to correct
+a goal from.
+
+`FastStore.applyProtocol(_:to:)` is the only path by which a running fast's
+goal moves, and nothing but the dialog may call it. It reconciles, which is the
+whole job — the goal alert and both milestones are derived from `goalHours` and
+would otherwise stay armed for the goal the user just replaced. A new goal
+already behind the fast is accepted and simply arms nothing.
+`FastinoTests/PlanChangeTests.swift` covers the four cases that matter: the
+open fast moves, history doesn't, a goal already passed is legal, and ending
+afterwards is judged against the new goal.
+
+Two SwiftUI traps surfaced while verifying this on the simulator, both
+pre-existing and both now fixed:
+
+- **`isPresented: .constant(x != nil)` cannot be dismissed.** The binding is
+  write-to-nowhere, so every dismissal SwiftUI attempts is dropped — an outside
+  tap and a downward swipe both left the dialog standing. `Binding.presented()`
+  in `Shared/Support/OptionalPresentation.swift` is the real binding to use.
+- **`confirmationDialog` drew no cancel button at all** in the card
+  presentation these screens get, so with the constant binding the user was
+  genuinely trapped, forced to commit to one of the choices. The plan dialogs
+  are `.alert`s now; an alert draws every button it is given, Cancel included.
+  Verified by tapping through all three branches with XCUITest: cancel and
+  "keep" leave the running fast at 16h, "too" moves it to 18h.
+
 ## App Store readiness
 
 Two things were settled here rather than left to the submission:

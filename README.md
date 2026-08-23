@@ -14,7 +14,7 @@ No accounts, no backend, no analytics, no subscriptions. Your data stays on your
 
 **Your schedule doesn't drift.** You pick the time you start fasting, and the eating window closes at that time every day. Fast two hours longer than planned and you've spent two hours of today's eating window — you haven't pushed tomorrow's start two hours later.
 
-**Protocols.** 14:10, 16:8, 18:6, 20:4 and OMAD (23:1). The goal is snapshotted when a fast starts, so changing protocol never rewrites history.
+**Protocols.** 14:10, 16:8, 18:6, 20:4 and OMAD (23:1). The goal is snapshotted when a fast starts, so changing protocol never rewrites history — and if you switch mid-fast, the app asks whether the fast you're running should take the new goal too.
 
 **Streaks and stats.** Current and longest streak, current and longest fast, a seven-day bar chart of how long each day's fast ran, and 30-day average duration and goal-completion rate. Everything is derived from stored fasts — nothing is cached, so edits recompute cleanly.
 

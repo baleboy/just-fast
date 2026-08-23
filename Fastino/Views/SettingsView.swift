@@ -43,12 +43,13 @@ private struct SettingsForm: View {
     /// Whether iOS is currently refusing to present our alerts. Without this the
     /// toggles below look fully functional while nothing can ever fire (§4.4).
     @State private var alertsBlocked = false
-    /// A plan tapped while a fast is running — held until the user confirms that
-    /// it won't touch the fast in progress.
+    /// A plan tapped while a fast is running — held until the user says whether
+    /// the fast in progress should take the new goal too.
     @State private var pendingProtocol: FastingProtocol?
     @Environment(CloudSyncStatus.self) private var syncStatus
 
-    private var isFasting: Bool { fasts.contains(where: \.isOpen) }
+    private var openFast: Fast? { fasts.first(where: \.isOpen) }
+    private var isFasting: Bool { openFast != nil }
 
     private var reminderTime: Binding<Date> {
         Binding(
@@ -115,17 +116,29 @@ private struct SettingsForm: View {
             .padding(.top, FlameLayout.screenTopPadding)
             .flameTabBarClearance()
         }
-        .confirmationDialog(
+        // Two outcomes, not one warning. The old dialog announced that the
+        // running fast kept its old goal and gave the user no say — but someone
+        // switching plans mid-fast usually means *this* fast, and the goal is
+        // what the ring fills towards and the alert fires on. Both buttons
+        // change the plan; they differ only in whether the fast in progress
+        // comes along, and each names the hours so neither is the guess.
+        .alert(
             "Change your plan?",
-            isPresented: .constant(pendingProtocol != nil),
-            titleVisibility: .visible
+            isPresented: $pendingProtocol.presented()
         ) {
             if let pendingProtocol {
-                Button("Switch to \(pendingProtocol.displayName)") { apply(pendingProtocol) }
+                Button("Change this fast to \(pendingProtocol.goalHours)h too") {
+                    apply(pendingProtocol, toFastInProgress: true)
+                }
+                Button("Keep this fast at \(openFast?.goalHours ?? 0)h") {
+                    apply(pendingProtocol, toFastInProgress: false)
+                }
             }
             Button("Cancel", role: .cancel) { self.pendingProtocol = nil }
         } message: {
-            Text("The fast you're running keeps the goal it started with. The new plan applies from your next fast.")
+            if let openFast {
+                Text("You're \(DurationFormat.hoursMinutes(openFast.record.duration(asOf: Date()))) into a \(openFast.goalHours)-hour fast.")
+            }
         }
         .onChange(of: settings.startReminderEnabled) { reschedule() }
         .onChange(of: settings.startReminderHour) { reschedule() }
@@ -272,12 +285,17 @@ private struct SettingsForm: View {
         }
     }
 
-    private func apply(_ proto: FastingProtocol) {
+    /// `toFastInProgress` is only ever `true` by way of the dialog above; the
+    /// no-fast path can't reach it, because there is nothing to re-goal.
+    private func apply(_ proto: FastingProtocol, toFastInProgress: Bool = false) {
         pendingProtocol = nil
         withAnimation(.snappy(duration: 0.25)) {
             settings.activeProtocol = proto
         }
         try? modelContext.save()
+        if toFastInProgress, let openFast {
+            try? FastStore(context: modelContext).applyProtocol(proto, to: openFast)
+        }
     }
 
     private func cycleAppearance() {

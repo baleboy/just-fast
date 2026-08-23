@@ -55,10 +55,12 @@ private struct WatchSettingsForm: View {
     /// Whether the system is currently refusing to present our alerts. Without
     /// it the toggles below look functional while nothing can ever fire (§4.4).
     @State private var alertsBlocked = false
-    /// A plan tapped while a fast is running — held until the user confirms.
+    /// A plan tapped while a fast is running — held until the user says whether
+    /// the fast in progress should take the new goal too.
     @State private var pendingProtocol: FastingProtocol?
 
-    private var isFasting: Bool { fasts.contains(where: \.isOpen) }
+    private var openFast: Fast? { fasts.first(where: \.isOpen) }
+    private var isFasting: Bool { openFast != nil }
 
     var body: some View {
         List {
@@ -93,21 +95,25 @@ private struct WatchSettingsForm: View {
             guard phase == .active else { return }
             Task { await refreshAlertStatus() }
         }
-        .confirmationDialog(
+        // The same two outcomes the phone offers, and for the same reason:
+        // switching plans mid-fast usually means *this* fast. Both buttons
+        // change the plan and differ only in whether the running one comes
+        // along, so each names its hours rather than leaving the user to infer
+        // which is which. It matters more here than on the phone — a standalone
+        // watch has no other screen to correct the goal from.
+        .alert(
             "Change plan?",
-            isPresented: .constant(pendingProtocol != nil),
-            titleVisibility: .visible
+            isPresented: $pendingProtocol.presented()
         ) {
-            Button("Change") {
-                if let pending = pendingProtocol { settings.activeProtocol = pending }
-                pendingProtocol = nil
+            if let pending = pendingProtocol {
+                Button("This fast too — \(pending.goalHours)h") { apply(pending, toFastInProgress: true) }
+                Button("Keep this one at \(openFast?.goalHours ?? 0)h") { apply(pending, toFastInProgress: false) }
             }
             Button("Cancel", role: .cancel) { pendingProtocol = nil }
         } message: {
-            // goalHours is snapshotted at start, so the running fast keeps the
-            // goal it began with however this resolves. Saying so is the whole
-            // point of asking.
-            Text("Your fast in progress keeps its current goal.")
+            if let openFast {
+                Text("You're \(DurationFormat.hoursMinutes(openFast.record.duration(asOf: Date()))) into a \(openFast.goalHours)-hour fast.")
+            }
         }
     }
 
@@ -170,7 +176,19 @@ private struct WatchSettingsForm: View {
         if isFasting {
             pendingProtocol = option
         } else {
-            settings.activeProtocol = option
+            apply(option)
+        }
+    }
+
+    /// The plan change itself goes through `@Bindable`, so `onChange(of:
+    /// settings.snapshot)` above stamps and saves it. Re-goaling the running
+    /// fast is a `FastStore` write, because the notifications derived from the
+    /// old goal have to be re-armed.
+    private func apply(_ option: FastingProtocol, toFastInProgress: Bool = false) {
+        pendingProtocol = nil
+        settings.activeProtocol = option
+        if toFastInProgress, let openFast {
+            try? FastStore(context: modelContext).applyProtocol(option, to: openFast)
         }
     }
 
