@@ -220,13 +220,27 @@ private struct ActiveFastContent: View {
                                 .font(.flameFixed(40, .extraBold))
                                 .monospacedDigit()
                                 .foregroundStyle(palette.ink.color)
+                            // Measured against the *hole*, not the ring's full
+                            // width, and against the chord at this line's own
+                            // height rather than the hole's widest point: the
+                            // caption sits ~95pt below centre, where a 243pt hole
+                            // has narrowed to about 165. A width taken from
+                            // `diameter` runs the copy out over the band. It
+                            // matters because the day qualifier — "ends 11.02
+                            // tomorrow" — is the normal case for an evening fast,
+                            // not an edge case; without it the line fits at full
+                            // size, exactly as drawn in 4a.
                             Text("\(record.goalHours)h fast · ends \(TimeFormat.endLabel(record.goalReachedAt, now: now))")
                                 .font(.flameFixed(14))
                                 .foregroundStyle(palette.muted.color)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.8)
+                                .minimumScaleFactor(0.7)
+                                .frame(maxWidth: FlameRing.innerDiameter(for: diameter) * 0.68)
                         }
                         .frame(maxWidth: diameter * 0.7)
+                        // Lifts the block far enough that the caption's chord is
+                        // worth having; the mascot has the headroom to spare.
+                        .offset(y: -10)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
