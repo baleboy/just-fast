@@ -84,6 +84,17 @@ enum DebugLaunch {
         #endif
         return HealthKitProvider.shared
     }
+
+    /// Whether the splash runs. `-noSplash` skips it for the screenshot pass,
+    /// which takes its shot moments after `simctl launch` and would otherwise
+    /// photograph the splash instead of the screen it asked for.
+    static var showsSplash: Bool {
+        #if DEBUG
+        return !ProcessInfo.processInfo.arguments.contains("-noSplash")
+        #else
+        return true
+        #endif
+    }
 }
 
 struct RootView: View {
@@ -98,6 +109,11 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selection: FlameTab = .initial
     @State private var reconciler = SyncReconciler()
+    /// The splash (§5). Starts up unless the screenshot pass turned it off, and
+    /// comes down on a timer rather than on any loading work: the store opens
+    /// synchronously, so there is nothing to wait for and it is a piece of
+    /// staging, not a progress indicator.
+    @State private var showSplash = DebugLaunch.showsSplash
 
     /// The condition SyncReconciler exists to fix. Watching the count means the
     /// @Query republish that follows a CloudKit merge is the trigger — SwiftData
@@ -127,6 +143,17 @@ struct RootView: View {
             // `.flameTabBarClearance()`.
             FlameTabBar(selection: $selection, isFasting: !isResting)
                 .padding(.bottom, 4)
+
+            if showSplash {
+                SplashView()
+                    .transition(.opacity)
+                    // Above the tab bar, which is a sibling rather than a child.
+                    .zIndex(1)
+                    .task {
+                        try? await Task.sleep(for: .seconds(1.4))
+                        withAnimation(.easeOut(duration: 0.45)) { showSplash = false }
+                    }
+            }
         }
         .tint(Theme.accentText)
         .preferredColorScheme(preferredScheme)

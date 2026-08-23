@@ -188,6 +188,32 @@ scroll, so seeing all of them means temporarily hoisting `HealthPanels` to the
 top of `StatsView.content`. `HealthKitProvider` itself needs a device or a manual
 simulator session with sample data.
 
+## Built: the splash (§5)
+
+`Fastino/Views/SplashView.swift` — the mascot igniting over the wordmark, with
+the Baleware lockup at the foot; ~1.4s, then a 0.45s crossfade into the app.
+
+- It lives **inside `RootView`'s stack**, not above `RootView` in `FastinoApp`.
+  The appearance override (`.preferredColorScheme`) is applied in `RootView`, so
+  a splash mounted outside it would follow the *system* scheme and flash the
+  wrong palette on a device whose owner picked the other one. Being a sibling of
+  the tab bar rather than a parent is also what lets the app finish laying out
+  behind it, so the crossfade reveals a settled screen.
+- It comes down on a timer, not on any work: the store opens synchronously and
+  there is nothing to wait for. It is staging, not a progress indicator — so
+  the duration is a design value, and nothing may be made to block on it.
+- **The Baleware wordmark is not set in Baloo 2** — it's the publisher's
+  identity, not the app's. baleware.com declares
+  `"American Typewriter", "Courier New", Courier, monospace`, and iOS resolves
+  that chain differently from a Mac: asking `Font.custom` for a face that isn't
+  resident yields the *system* font silently, with no way to detect it at the
+  call site. `BalewareLockup` therefore probes `UIFont(name:)` down the brand's
+  own list and takes the first face that exists, so the fallback is Baleware's
+  choice rather than Apple's.
+- The rainbow is fixed in both schemes — six equal stripes, green through blue,
+  from the site's favicon. It's someone else's mark, so it is not re-tinted by
+  the palette the way the app's own colours are.
+
 ## Deferred (need additional Xcode targets — not added here)
 
 These require new build targets in `project.pbxproj`, which can't be added
@@ -373,3 +399,5 @@ package means replicating that default and making ~1,900 lines `public`.
   last fast closed 2h ago, so the timer shows the eating window instead.
   `-tab stats` / `-tab settings` (DEBUG only) opens straight onto another tab,
   which is what makes the other screens screenshot-able from `simctl`.
+- Splash: `-noSplash` (DEBUG only) skips it. The screenshot pass shoots about a
+  second after `simctl launch` and would otherwise photograph the splash.
