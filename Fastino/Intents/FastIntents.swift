@@ -72,8 +72,8 @@ struct ToggleFastIntent: AppIntent {
             let elapsed = DurationFormat.hoursMinutes(open.record.duration(asOf: Date()))
             let goalTail = open.record.duration(asOf: Date()) >= open.record.goalInterval ? " — goal reached ✓" : ""
             try await requestConfirmation(
-                result: .result(dialog: "End fast? \(elapsed) elapsed\(goalTail)"),
-                confirmationActionName: .go
+                actionName: .go,
+                dialog: "End fast? \(elapsed) elapsed\(goalTail)"
             )
             let result = try store.endFast(createdVia: .app)
             WidgetCenter.shared.reloadAllTimelines()
@@ -81,8 +81,8 @@ struct ToggleFastIntent: AppIntent {
             return .result(dialog: "Fast ended: \(dur).")
         } else {
             try await requestConfirmation(
-                result: .result(dialog: "Start fasting now?"),
-                confirmationActionName: .start
+                actionName: .start,
+                dialog: "Start fasting now?"
             )
             try store.startFast(createdVia: .app)
             WidgetCenter.shared.reloadAllTimelines()

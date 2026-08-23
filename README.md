@@ -32,7 +32,7 @@ Streaks are strict by design: no freezes, no rest days. A goal day is a calendar
 
 ## Requirements
 
-- iOS 26.4 or later (iPhone and iPad)
+- iOS 26.4 or later (iPhone)
 - Xcode 26.x
 
 ## Building

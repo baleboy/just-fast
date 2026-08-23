@@ -390,6 +390,45 @@ but was judged not worth it yet: the targets set
 `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` and the code leans on it, so a
 package means replicating that default and making ~1,900 lines `public`.
 
+## App Store readiness
+
+Two things were settled here rather than left to the submission:
+
+- **iPhone only.** `TARGETED_DEVICE_FAMILY` was `1,2` with both orientation
+  keys set to portrait, which is the `All interface orientations must be
+  supported unless the app requires full screen` warning the archive emitted —
+  a real problem under iPadOS windowing, and a promise of an iPad layout
+  nothing had ever laid out or screenshotted. The family is now `1` and
+  `UISupportedInterfaceOrientations_iPad` is gone. Adding iPad later is an
+  update; taking it away later is not.
+- **`Shared/PrivacyInfo.xcprivacy`** — the required-reason declaration for
+  `NotificationOwnership`'s app-group `UserDefaults` (`CA92.1`), plus the
+  no-tracking / no-collection answers. It sits in `Shared/` because all three
+  shipping targets include that folder, so one file lands at the Resources root
+  of the app, the watch app *and* the complication extension — the extension
+  links the same code and would otherwise be rejected on its own
+  (ITMS-91053). `UserDefaults` is the only required-reason API the app touches;
+  a new call to one (file timestamps, disk space, boot time, active keyboards)
+  has to be declared there or the upload fails.
+
+Still outstanding before submission, and none of them live in this repo:
+
+1. **Deploy the CloudKit schema to Production.** SwiftData creates record types
+   in the *Development* environment only; an App Store build talks to
+   Production. Ship without this and sync silently fails for everyone.
+2. **HealthKit capability on the App ID** in the developer portal (see §4.8
+   above).
+3. **A privacy policy URL** — mandatory in App Store Connect, and scrutinised
+   for a HealthKit app. Nothing in Settings links to one yet.
+4. **Confirm `aps-environment` becomes `production`** in the exported ipa; both
+   entitlements files say `development` and rely on Xcode's export step
+   rewriting it.
+5. **`ITSAppUsesNonExemptEncryption`** is unset, so every upload asks the
+   export-compliance question by hand.
+6. Verify on hardware what a simulator can't: phone↔watch sync,
+   `HealthKitProvider` against a real Health store, and notification ownership
+   on a genuinely paired watch.
+
 ## Running
 
 - App: `xcodebuild build -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone 17'`

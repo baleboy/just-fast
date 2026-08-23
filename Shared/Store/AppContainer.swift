@@ -41,7 +41,12 @@ enum AppContainer {
     /// Shared between each app and its extensions. Must be listed in every
     /// target's entitlements — a target without it silently gets its own
     /// private store and shows stale or empty data forever.
-    static let appGroupID = "group.com.baleware.fastino"
+    ///
+    /// `nonisolated` because `NotificationOwnership` is nonisolated and reads
+    /// it to open the group's `UserDefaults`; the targets default to
+    /// `MainActor` isolation, so an ordinary `static let` here is main-actor
+    /// bound. It is an immutable `String`, so lifting the isolation is safe.
+    nonisolated static let appGroupID = "group.com.baleware.fastino"
 
     private static let log = Logger(subsystem: "com.baleware.fastino", category: "AppContainer")
 

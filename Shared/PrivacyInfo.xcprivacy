@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+     Privacy manifest (App Store requirement).
+
+     It lives in Shared/ deliberately: all three shipping targets — the iOS app,
+     the watch app and the complication extension — include that folder, so one
+     file gives each bundle its own copy at its Resources root. A target without
+     a manifest that links a required-reason API is rejected at upload with
+     ITMS-91053, and the extension links the same Shared/ code the apps do.
+
+     Nothing here is a description of intent: these are declarations Apple
+     validates against the binary. Keep them true. If a new dependency or a new
+     call reaches a required-reason API — file timestamps, disk space, system
+     boot time, active keyboards — it must be added below or the upload fails.
+-->
+<plist version="1.0">
+<dict>
+	<!-- No tracking, no tracking domains, no data collection: the app has no
+	     backend, no analytics and no SDKs (README's first claim). Fasts sync
+	     through the user's *own* CloudKit private database, which is not
+	     collection — we never see it. Health data is read per screen and never
+	     persisted or transmitted at all (§4.8). -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<!-- NotificationOwnership stores which device schedules the local
+			     notifications in the app group's UserDefaults, so the answer
+			     survives launches and the complication process could read it.
+			     CA92.1 is the app-group reason: data accessible only to this
+			     app group, never sent off device. -->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
