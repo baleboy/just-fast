@@ -60,7 +60,6 @@ private struct WatchSettingsForm: View {
     @State private var pendingProtocol: FastingProtocol?
 
     private var openFast: Fast? { fasts.first(where: \.isOpen) }
-    private var isFasting: Bool { openFast != nil }
 
     var body: some View {
         List {
@@ -173,11 +172,19 @@ private struct WatchSettingsForm: View {
 
     private func select(_ option: FastingProtocol) {
         guard option != settings.activeProtocol else { return }
-        if isFasting {
+        if wouldRegoalFastInProgress(option) {
             pendingProtocol = option
         } else {
             apply(option)
         }
+    }
+
+    /// Whether the dialog has anything to ask about — see the iOS Settings
+    /// screen, which carries the same rule. A running fast already on `option`
+    /// would give both buttons the same hours, so the plan just changes.
+    private func wouldRegoalFastInProgress(_ option: FastingProtocol) -> Bool {
+        guard let openFast else { return false }
+        return openFast.goalHours != option.goalHours || openFast.protocolID != option.rawValue
     }
 
     /// The plan change itself goes through `@Bindable`, so `onChange(of:

@@ -49,7 +49,6 @@ private struct SettingsForm: View {
     @Environment(CloudSyncStatus.self) private var syncStatus
 
     private var openFast: Fast? { fasts.first(where: \.isOpen) }
-    private var isFasting: Bool { openFast != nil }
 
     private var reminderTime: Binding<Date> {
         Binding(
@@ -278,11 +277,23 @@ private struct SettingsForm: View {
 
     private func select(_ proto: FastingProtocol) {
         guard proto != settings.activeProtocol else { return }
-        if isFasting {
+        if wouldRegoalFastInProgress(proto) {
             pendingProtocol = proto
         } else {
             apply(proto)
         }
+    }
+
+    /// Whether the dialog has anything to ask about — i.e. whether applying
+    /// `proto` to the fast in progress would actually change it.
+    ///
+    /// It wouldn't when the running fast is *already* on that plan, which is
+    /// reachable in one move: switch away, choose "keep this fast", then switch
+    /// back. Both buttons would then offer the same 16h, which is a question
+    /// with one answer. The plan simply changes instead.
+    private func wouldRegoalFastInProgress(_ proto: FastingProtocol) -> Bool {
+        guard let openFast else { return false }
+        return openFast.goalHours != proto.goalHours || openFast.protocolID != proto.rawValue
     }
 
     /// `toFastInProgress` is only ever `true` by way of the dialog above; the

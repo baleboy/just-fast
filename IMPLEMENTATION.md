@@ -403,6 +403,12 @@ they differ only in whether the fast in progress comes along. On the watch
 too, where it matters more: a standalone install has no phone screen to correct
 a goal from.
 
+The alert is skipped when it would have nothing to ask: if the running fast is
+already on the plan being chosen, both buttons would offer the same hours.
+That state is one move away — switch away, choose "keep this fast", switch
+back — so `wouldRegoalFastInProgress` gates the dialog on whether applying
+would actually change the fast, rather than merely on whether one is running.
+
 `FastStore.applyProtocol(_:to:)` is the only path by which a running fast's
 goal moves, and nothing but the dialog may call it. It reconciles, which is the
 whole job — the goal alert and both milestones are derived from `goalHours` and
