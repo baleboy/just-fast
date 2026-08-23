@@ -9,11 +9,16 @@ import Foundation
 
 nonisolated enum DurationFormat {
     /// "16h 42m" style, used in copy and stats.
+    ///
+    /// A zero component is dropped rather than written out: a fast logged on the
+    /// hour reads "16h", not "16h 0m". Both being zero still reads "0m", since
+    /// something has to be there.
     static func hoursMinutes(_ interval: TimeInterval) -> String {
         let total = Int(interval.rounded())
         let hours = total / 3600
         let minutes = (total % 3600) / 60
         if hours == 0 { return "\(minutes)m" }
+        if minutes == 0 { return "\(hours)h" }
         return "\(hours)h \(minutes)m"
     }
 
