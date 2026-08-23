@@ -125,8 +125,18 @@ private struct HistoryRow: View {
                         .font(.caption)
                         .foregroundStyle(Theme.accentText)
                 }
+                if let noteLine {
+                    Text(noteLine)
+                        .font(.caption)
+                        .foregroundStyle(Theme.muted)
+                        .italic()
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
             }
-            Spacer()
+            Spacer(minLength: 8)
+            // The duration and badge keep their width; a long note truncates
+            // rather than pushing them off the row.
             VStack(alignment: .trailing, spacing: 4) {
                 Text(durationText)
                     .font(.flame(16, .extraBold, relativeTo: .headline))
@@ -134,8 +144,25 @@ private struct HistoryRow: View {
                     .monospacedDigit()
                 badge
             }
+            .layoutPriority(1)
         }
         .contentShape(.rect)
+    }
+
+    /// The note's first line, for the row — the whole note belongs to the edit
+    /// sheet, and a row that grew with it would break the month list's rhythm.
+    ///
+    /// First line with something *on* it rather than literally the first: a note
+    /// that opens with a blank line would otherwise reserve the space and show
+    /// nothing. Truncation is left to `lineLimit(1)`, which elides at whatever
+    /// width the row actually has instead of at a character count guessed here.
+    private var noteLine: String? {
+        guard let note = fast.note else { return nil }
+        return note
+            .split(whereSeparator: \.isNewline)
+            .lazy
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .first { !$0.isEmpty }
     }
 
     private var durationText: String {

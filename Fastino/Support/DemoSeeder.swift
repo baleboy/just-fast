@@ -11,6 +11,16 @@ import Foundation
 import SwiftData
 
 enum DemoSeeder {
+    /// Sample notes for the seed. `nil` in most slots, because a note is the
+    /// exception and a list where every row carries one wouldn't show that.
+    private static let demoNotes: [String?] = [
+        nil,
+        "Felt easy today",
+        "Broke early\nHeadache from about hour fourteen",
+        "Long walk in the afternoon and no hunger at all until the very end",
+        nil,
+    ]
+
     static var isRequested: Bool {
         #if DEBUG
         return ProcessInfo.processInfo.arguments.contains("-seedDemo")
@@ -77,6 +87,10 @@ enum DemoSeeder {
             let wobble = seedsHistory ? sin(Double(daysAgo) * 0.7) : 0
             let start = end.addingTimeInterval(-Double(goal) * 3600 - 900 - wobble * 3600)
             let fast = Fast(start: start, end: end, goalHours: goal, protocolID: "16:8", createdVia: .app)
+            // A few notes, so History's note line has something to draw — one
+            // short, one long enough to truncate, one with a second line the
+            // row must not show.
+            fast.note = Self.demoNotes[daysAgo % demoNotes.count]
             context.insert(fast)
         }
         if seedsEatingWindow {

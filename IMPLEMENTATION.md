@@ -61,7 +61,9 @@ for the handoff the screens were built from (approved: 4a, 6a, 5a, 5b light;
   the week as a **bar histogram** — height ∝ fast length against goal, solid for
   a goal day, a neutral stub for a missed one, half-strength and dashed for
   today — and a link into history
-- History (grouped by month, reverse-chron), edit/retro-entry/delete with
+- History (grouped by month, reverse-chron), a note's first line under the
+  end time (elided, single-line, so the row keeps its height),
+  edit/retro-entry/delete with
   validation messages, Settings (plan cards, each a flame that grows and hardens
   with the plan's intensity; "Start fast at" anchor; the three notification
   toggles; appearance cycle; CSV export; Back Tap tip card)
