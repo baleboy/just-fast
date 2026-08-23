@@ -250,6 +250,17 @@ struct FlameTabBar: View {
                                 Capsule().fill(palette.accentSurface.alpha(colorScheme == .dark ? 0.2 : 1).color)
                             }
                         }
+                        // Scoped to the one button that changed, not to the bar.
+                        // Animating the whole bar put the glass layer inside the
+                        // animated subtree, so every switch drove a backdrop
+                        // resample for the length of the animation — and dragged
+                        // all four glyphs through a symbol-replace transition,
+                        // because the weight change was animatable too.
+                        .animation(.snappy(duration: 0.22), value: isActive)
+                        // Lighting the flame is a state change the user just
+                        // caused on another screen; it shouldn't snap. Skipped
+                        // under Reduce Motion, like every other cue (§5).
+                        .animation(reduceMotion ? nil : .snappy(duration: 0.3), value: isFasting)
                 }
                 .buttonStyle(FlamePressStyle())
                 .accessibilityLabel(tab.rawValue)
@@ -260,18 +271,29 @@ struct FlameTabBar: View {
             }
         }
         .padding(6)
-        .background(palette.elevated.color, in: .capsule)
-        .shadow(color: palette.cardShadow.alpha(colorScheme == .dark ? 0.4 : 0.15).color, radius: 8, y: 4)
+        // The glass is a visual effect, not a view, so it hit-tests as if it
+        // weren't there: without a shape of its own the bar's padding and the
+        // gaps between the glyphs let taps straight through to whatever screen
+        // is behind — a history row, most visibly. The old opaque `.background`
+        // fill blocked them by accident; this does it on purpose.
+        .contentShape(.capsule)
+        .background { Capsule().fill(.clear) }
+        // System Liquid Glass rather than a hand-rolled stack of material and
+        // tint: the bar floats over scrolling content, which is exactly what the
+        // effect is for, and it brings the refraction, specular edge and shadow
+        // that a `.background` fill can't reproduce. Anything painted *over* the
+        // glass — an opaque `elevated` fill, as this had — turns it solid again,
+        // so the warm cast is passed to the effect as a tint instead of layered
+        // on top of it.
+        .glassEffect(
+            .regular.tint(palette.elevated.alpha(colorScheme == .dark ? 0.28 : 0.5).color),
+            in: .capsule
+        )
         // Four glyphs side by side still can't follow Dynamic Type all the way
         // up without the pill running off-screen, so it stops growing at the
         // first accessibility size. The glyphs are fixed-size anyway; this caps
         // the padding around them.
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-        .animation(.snappy(duration: 0.22), value: selection)
-        // Lighting the flame is a state change the user just caused on another
-        // screen; it shouldn't snap. Skipped under Reduce Motion, like every
-        // other cue in the app (§5).
-        .animation(reduceMotion ? nil : .snappy(duration: 0.3), value: isFasting)
     }
 }
 
