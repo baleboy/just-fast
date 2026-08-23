@@ -105,11 +105,18 @@ private struct SettingsForm: View {
                 BackTapTip()
                     .padding(.top, 10)
 
-                Text("Fastino 1.0")
-                    .font(.flame(12, .semibold, relativeTo: .caption2))
-                    .foregroundStyle(Theme.muted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 22)
+                // The same publisher lockup the splash signs off with (§5),
+                // so the credit is reachable after launch too.
+                VStack(spacing: 10) {
+                    Text("Fastino 1.0")
+                        .font(.flame(12, .semibold, relativeTo: .caption2))
+                        .foregroundStyle(Theme.muted)
+                    Text("by")
+                        .flameSectionLabel()
+                    BalewareLockup()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 22)
             }
             .padding(.horizontal, FlameLayout.screenHorizontalPadding)
             .padding(.top, FlameLayout.screenTopPadding)

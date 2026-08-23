@@ -68,7 +68,7 @@ struct BalewareLockup: View {
                 .foregroundStyle(Theme.body)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("From Baleware")
+        .accessibilityLabel("By Baleware")
     }
 }
 
@@ -114,7 +114,7 @@ struct SplashView: View {
                 Spacer()
 
                 VStack(spacing: 10) {
-                    Text("from")
+                    Text("by")
                         .flameSectionLabel()
                     BalewareLockup()
                 }
