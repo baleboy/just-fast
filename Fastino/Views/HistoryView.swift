@@ -172,20 +172,32 @@ private struct HistoryRow: View {
         return "—"
     }
 
-    @ViewBuilder private var badge: some View {
-        if fast.isOpen {
-            Label("Open", systemImage: "circle.dashed")
-                .font(.caption2)
-                .foregroundStyle(Theme.accentText)
-        } else if fast.record.isGoalMet {
-            Label("Goal met", systemImage: "checkmark.circle.fill")
-                .font(.caption2)
-                .foregroundStyle(Theme.success)
-        } else {
-            Label("Under goal", systemImage: "circle")
-                .font(.caption2)
-                .foregroundStyle(Theme.muted)
+    /// Marker *after* the label, not before it.
+    ///
+    /// The row is trailing-aligned and the three labels are three different
+    /// widths, so a leading icon lands at a different x on every row and the
+    /// column of markers reads as ragged. Trailing, they line up under the
+    /// duration's right edge — and the fixed width keeps them there whichever
+    /// symbol is drawn. The text carries the meaning, so the symbol is hidden
+    /// from VoiceOver rather than announced twice.
+    private var badge: some View {
+        let (title, symbol, tint): (String, String, Color) =
+            if fast.isOpen {
+                ("Open", "circle.dashed", Theme.accentText)
+            } else if fast.record.isGoalMet {
+                ("Goal met", "checkmark.circle.fill", Theme.success)
+            } else {
+                ("Under goal", "circle", Theme.muted)
+            }
+
+        return HStack(spacing: 5) {
+            Text(title)
+            Image(systemName: symbol)
+                .frame(width: 12)
+                .accessibilityHidden(true)
         }
+        .font(.caption2)
+        .foregroundStyle(tint)
     }
 }
 
