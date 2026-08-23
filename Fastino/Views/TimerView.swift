@@ -387,11 +387,14 @@ private struct RestingContent: View {
         return DurationFormat.hoursMinutes(abs(window.remaining(asOf: now)))
     }
 
+    /// Every branch names the plan's length, so the fast you're about to start
+    /// is stated wherever the ring is counting something else. The idle "READY"
+    /// state carries it in `value` instead, where it's the only number there.
     private func caption(now: Date, isOver: Bool) -> String {
         guard let window else { return "start whenever you’re ready" }
         return isOver
-            ? "ready when you are"
-            : "until your next fast · \(TimeFormat.endLabel(window.end, now: now))"
+            ? "\(activeProtocol.goalHours)h fast · ready when you are"
+            : "until your \(activeProtocol.goalHours)h fast · \(TimeFormat.endLabel(window.end, now: now))"
     }
 }
 
