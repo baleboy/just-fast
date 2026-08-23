@@ -96,7 +96,7 @@ struct TimerView: View {
                 actionLabel: "Start fast",
                 accent: Theme.accentText,
                 date: Date()
-            ) { date in
+            ) { date, _ in
                 // Ask for notification permission at the moment it's first useful
                 // (so the goal alert can fire) rather than nagging on launch.
                 Task {
@@ -112,7 +112,9 @@ struct TimerView: View {
                 accent: Theme.accentText,
                 earliest: openFast?.start,
                 date: Date(),
-                onConfirm: { date in perform { try store.endFast(at: date) } },
+                collectsNote: true,
+                note: openFast?.note ?? "",
+                onConfirm: { date, note in perform { try store.endFast(at: date, note: note) } },
                 destructive: openFast.map { fast in
                     (
                         label: "Delete fast",

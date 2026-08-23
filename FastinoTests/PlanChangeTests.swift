@@ -92,3 +92,54 @@ struct PlanChangeTests {
         #expect(result.goalMet, "the goal in force when it ended is the one that counts")
     }
 }
+
+@MainActor
+@Suite("A note carried by ending a fast")
+struct EndFastNoteTests {
+    private func makeStore() -> (FastStore, ModelContext) {
+        let context = ModelContext(AppContainer.inMemory())
+        return (FastStore(context: context), context)
+    }
+
+    private func openFast(in context: ModelContext, note: String? = nil) {
+        let fast = Fast(start: Date().addingTimeInterval(-16 * 3600), goalHours: 16,
+                        protocolID: FastingProtocol.p168.rawValue)
+        fast.note = note
+        context.insert(fast)
+    }
+
+    @Test("A note given at the end is stored on the fast")
+    func noteIsStored() throws {
+        let (store, context) = makeStore()
+        openFast(in: context)
+
+        let result = try store.endFast(note: "Broke early, felt fine")
+
+        #expect(store.allFasts().first?.note == "Broke early, felt fine")
+        #expect(result.kind == .ended)
+    }
+
+    /// The intents and the watch pass no note at all — neither offers anywhere
+    /// to type one — and must not wipe a note added from History mid-fast.
+    @Test("No note leaves an existing one alone")
+    func nilLeavesTheExistingNote() throws {
+        let (store, context) = makeStore()
+        openFast(in: context, note: "Added from History while it ran")
+
+        try store.endFast()
+
+        #expect(store.allFasts().first?.note == "Added from History while it ran")
+    }
+
+    /// Blank is not "no note given" — it is the user having cleared the field,
+    /// which is the only way to remove a note from the end sheet.
+    @Test("A blank note clears an existing one")
+    func blankClearsTheNote() throws {
+        let (store, context) = makeStore()
+        openFast(in: context, note: "Written earlier")
+
+        try store.endFast(note: "   ")
+
+        #expect(store.allFasts().first?.note == nil)
+    }
+}

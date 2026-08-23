@@ -40,6 +40,12 @@ for the handoff the screens were built from (approved: 4a, 6a, 5a, 5b light;
   `NavigationStack`, behind a custom floating pill tab bar of SF Symbols
   (`RootView`), whose flame is lit while a fast runs; no tab screen carries a
   navigation bar
+- The end-fast sheet takes a note alongside the time, seeded from the fast's
+  existing one. `FastStore.endFast(at:note:createdVia:)` reads `nil` as "leave
+  the note alone" (the intents and the watch, neither of which offers anywhere
+  to type one) and a non-`nil` string as the user's intent — blank included, so
+  clearing the field clears the note. Covered by `EndFastNoteTests`. Not on the
+  watch, per §4.7's subset rule.
 - Timer screen with the **flame mascot** inside the **zone ring**
   (`Design/FlameMascot.swift`, `Views/FlameRing.swift`): gold/orange/pink bands,
   a pale preview of what's still ahead, and a white progress dot on the fill

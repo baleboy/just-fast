@@ -21,13 +21,23 @@ struct AdjustTimeSheet: View {
     /// Lower bound for the picker (e.g. an end can't precede the start).
     var earliest: Date? = nil
     @State var date: Date
-    let onConfirm: (Date) -> Void
+    /// Whether the sheet collects a note as well as a time. Only the end sheet
+    /// does: a note is a reflection on the fast just finished, and there is
+    /// nothing to say about one that hasn't started (§4.1).
+    var collectsNote: Bool = false
+    /// Seeds the field, so a note added from History while the fast ran is
+    /// there to edit rather than silently replaced.
+    @State var note: String = ""
+    /// The note is `nil` unless the sheet collected one; blank means the user
+    /// cleared it, which `FastStore.endFast` honours.
+    let onConfirm: (Date, String?) -> Void
     /// Optional escape hatch shown beneath the confirm button — used by the end-fast
     /// sheet to discard a fast that was started by mistake (§4.1).
     var destructive: (label: String, confirmTitle: String, action: () -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var showDestructiveConfirm = false
+    @FocusState private var noteIsFocused: Bool
 
     private let quickOffsets: [(label: String, seconds: TimeInterval)] = [
         ("−15m", 15 * 60),
@@ -54,10 +64,12 @@ struct AdjustTimeSheet: View {
                 .tint(accent)
                 .padding(.horizontal)
 
+                if collectsNote { noteField }
+
                 Spacer(minLength: 0)
 
                 Button {
-                    onConfirm(date)
+                    onConfirm(date, collectsNote ? note : nil)
                     dismiss()
                 } label: {
                     Text(actionLabel)
@@ -85,6 +97,16 @@ struct AdjustTimeSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+                // Return inserts a newline in a `.vertical` field, so without
+                // this the only way to put the keyboard away is to tap outside
+                // it. (The confirm button itself stays reachable — the sheet
+                // grows to the large detent when the keyboard appears.)
+                if collectsNote {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done") { noteIsFocused = false }
+                    }
+                }
             }
             .confirmationDialog(
                 destructive?.confirmTitle ?? "",
@@ -104,6 +126,20 @@ struct AdjustTimeSheet: View {
     }
 
     // MARK: Pieces
+
+    /// Left in the system face on purpose: a `TextField` lays out its own text,
+    /// and Baloo 2's taller metrics crop it — the same reason the watch pickers
+    /// aren't in it either.
+    private var noteField: some View {
+        TextField("Note (optional)", text: $note, axis: .vertical)
+            .lineLimit(1...4)
+            .focused($noteIsFocused)
+            .textInputAutocapitalization(.sentences)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(Theme.card, in: .rect(cornerRadius: 14))
+            .padding(.horizontal)
+    }
 
     private var selectedTimeHeader: some View {
         VStack(spacing: 4) {

@@ -119,8 +119,19 @@ struct FastStore {
         return FastActionResult(kind: .started, fast: fast.record)
     }
 
+    /// End the open fast (§4.1).
+    ///
+    /// `note` is *not* a value to store but a decision about the note: `nil`
+    /// leaves whatever the fast already carries alone, which is what the
+    /// intents and the watch want, since neither offers anywhere to type one. A
+    /// non-`nil` string is the user's intent from the end sheet and replaces it
+    /// — blank included, so clearing a prefilled note actually clears it.
     @discardableResult
-    func endFast(at date: Date = Date(), createdVia: CreatedVia = .app) throws -> FastActionResult {
+    func endFast(
+        at date: Date = Date(),
+        note: String? = nil,
+        createdVia: CreatedVia = .app
+    ) throws -> FastActionResult {
         guard let fast = openFast() else { throw AppError.notFasting }
 
         // Records excluding the one being closed, for overlap validation.
@@ -133,6 +144,7 @@ struct FastStore {
         let previousLongestStreak = FastingEngine.longestStreak(allBefore, timeZone: .current)
 
         fast.end = date
+        if let note { fast.note = note.nilIfBlank }
         if createdVia != .app { fast.createdVia = createdVia }
         try context.save()
 
