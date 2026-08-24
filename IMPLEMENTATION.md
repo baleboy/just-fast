@@ -171,6 +171,17 @@ The pure half lives in `Shared/Health/` (`HealthSample`, `SleepAggregator`,
 `inBed`/`awake` exclusion, naps, DST, and time-zone bucketing. The one file that
 imports HealthKit is `Fastino/Health/HealthKitProvider.swift`.
 
+Settings has an **Apple Health** row (`healthCard` in `SettingsView`), added
+because the integration otherwise existed only as a one-shot permission sheet on
+Stats: refuse it and nothing anywhere in the app mentioned Health again. It
+branches on `hasBeenAsked()`, the one authorization fact HealthKit discloses
+about reads — before, it asks; after, it opens the Health app (`x-apple-health://`,
+falling back to `openSettingsURLString`), since a refusal can only be reversed
+there and re-requesting presents nothing. It never claims Health is *on*. The
+row takes its provider from `DebugLaunch.healthProvider`, so `-fixtureHealth`
+drives it too. `HealthPanels` also re-loads on `scenePhase == .active` while
+visible, so access granted in the Health app lands on the way back.
+
 Wiring: `com.apple.developer.healthkit` in `Fastino/Fastino.entitlements` and
 `NSHealthShareUsageDescription` in `Fastino/Info.plist` (the project's first
 privacy usage string). **Device builds also need the HealthKit capability
@@ -194,7 +205,10 @@ permission sheet can't be tapped by `simctl`, so `-fixtureHealth` uses
 `FixtureHealthProvider`. The panels sit below the fold and `simctl` can't
 scroll, so seeing all of them means temporarily hoisting `HealthPanels` to the
 top of `StatsView.content`. `HealthKitProvider` itself needs a device or a manual
-simulator session with sample data.
+simulator session with sample data. The Settings row's two states were both
+looked at on the simulator (`-tab settings`, with and without `-fixtureHealth`,
+the "ask" state after an uninstall) by temporarily hoisting the group above
+`YOUR FAST PLAN` — it sits below the fold too.
 
 ## Built: the splash (§5)
 

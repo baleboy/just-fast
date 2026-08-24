@@ -46,7 +46,15 @@ private struct SettingsForm: View {
     /// A plan tapped while a fast is running — held until the user says whether
     /// the fast in progress should take the new goal too.
     @State private var pendingProtocol: FastingProtocol?
+    /// Whether Health has been asked yet — `nil` until the check comes back.
+    /// It's the only authorization fact HealthKit will disclose about reads
+    /// (§4.8), so it's the only thing the row below can honestly branch on.
+    @State private var healthAsked: Bool?
+    /// Injected the same way the panels take it, so `-fixtureHealth` drives
+    /// this row too rather than leaving it talking to an empty simulator store.
+    private let health: any HealthProvider = DebugLaunch.healthProvider
     @Environment(CloudSyncStatus.self) private var syncStatus
+    @Environment(\.openURL) private var openURL
 
     private var openFast: Fast? { fasts.first(where: \.isOpen) }
 
@@ -94,6 +102,13 @@ private struct SettingsForm: View {
                     .padding(.top, 24)
                 notificationCard
                     .padding(.top, 10)
+
+                if health.isAvailable {
+                    GroupLabel("APPLE HEALTH")
+                        .padding(.top, 24)
+                    healthCard
+                        .padding(.top, 10)
+                }
 
                 GroupLabel("GENERAL")
                     .padding(.top, 24)
@@ -160,12 +175,18 @@ private struct SettingsForm: View {
             settings.touch()
             try? modelContext.save()
         }
-        .task { await refreshAlertStatus() }
-        // Re-check on return from iOS Settings, where the user may have just
-        // flipped permission on or off.
+        .task {
+            await refreshAlertStatus()
+            healthAsked = await health.hasBeenAsked()
+        }
+        // Re-check on return from iOS Settings or the Health app, where the
+        // user may have just flipped permission on or off.
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
-            Task { await refreshAlertStatus() }
+            Task {
+                await refreshAlertStatus()
+                healthAsked = await health.hasBeenAsked()
+            }
         }
     }
 
@@ -233,6 +254,62 @@ private struct SettingsForm: View {
                 Toggle("", isOn: $settings.startReminderEnabled)
                     .labelsHidden()
                     .toggleStyle(FlameToggleStyle())
+            }
+        }
+    }
+
+    // MARK: Apple Health (§4.8)
+
+    /// Where the Health connection lives, because until now it existed only as
+    /// a permission sheet that appeared once on the Stats screen: say no by
+    /// reflex, or to the wrong prompt, and there was nothing anywhere in the
+    /// app that admitted Health was involved at all, let alone offered a way
+    /// back.
+    ///
+    /// The row can only say two things, and neither of them is "on". HealthKit
+    /// will not tell an app whether *reads* were granted — a denial and an
+    /// empty Health store are the same answer — so this branches on the one
+    /// fact it will disclose: whether the sheet has been shown yet. Before, the
+    /// row asks; after, it hands the user off to Health, which is the only
+    /// place the decision can actually be changed (re-requesting after a
+    /// refusal presents nothing at all).
+    @ViewBuilder
+    private var healthCard: some View {
+        CardGroup {
+            switch healthAsked {
+            case nil:
+                SettingsRow(title: "Apple Health", subtitle: "Checking…", isLast: true) {
+                    EmptyView()
+                }
+            case false?:
+                Button {
+                    Task {
+                        await health.requestAccess()
+                        healthAsked = await health.hasBeenAsked()
+                    }
+                } label: {
+                    SettingsRow(
+                        title: "Apple Health",
+                        subtitle: "Off. Allow reading to see sleep and weight alongside your fasts in Stats.",
+                        isLast: true
+                    ) {
+                        RowValue(text: "Allow")
+                    }
+                }
+                .buttonStyle(FlamePressStyle())
+            case true?:
+                Button {
+                    openHealth()
+                } label: {
+                    SettingsRow(
+                        title: "Apple Health",
+                        subtitle: "Sleep and weight for the panels in Stats. Health keeps what Fastino may read — change it there, under Profile → Apps.",
+                        isLast: true
+                    ) {
+                        RowValue(text: "Health")
+                    }
+                }
+                .buttonStyle(FlamePressStyle())
             }
         }
     }
@@ -323,6 +400,18 @@ private struct SettingsForm: View {
             settings.appearance = next
         }
         try? modelContext.save()
+    }
+
+    /// Health's own privacy screen is the only place a refused read can be
+    /// granted; iOS Settings' page for Fastino doesn't list Health at all. The
+    /// app's Settings page is the fallback purely so the button always does
+    /// *something* if the Health app can't be opened.
+    private func openHealth() {
+        guard let health = URL(string: "x-apple-health://") else { return }
+        openURL(health) { opened in
+            guard !opened, let settings = URL(string: UIApplication.openSettingsURLString) else { return }
+            openURL(settings)
+        }
     }
 
     private func refreshAlertStatus() async {

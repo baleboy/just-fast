@@ -136,6 +136,10 @@ Both panels obey the same contract, which is what keeps two scales honest: the *
 - **Read-only.** Sleep (`sleepAnalysis`) and body mass (`bodyMass`), nothing written back (§1).
 - **Never stored.** HealthKit data may not be synced to iCloud and our container mirrors to CloudKit, so samples are fetched when Stats appears and held in memory only. No `@Model`, no app group, no cache on disk.
 - **Permission is asked the first time the Stats screen shows these panels**, not at launch — the same rule as notifications (§4.4).
+- **Settings carries an Apple Health row**, so the connection isn't only a sheet that appeared once. A prompt refused by reflex used to leave nothing in the app admitting Health was involved, and no way back.
+  - Before the sheet has been shown, the row says Health is off and asks. Afterwards it hands the user to the Health app, which is the only place a refusal can be reversed: re-requesting after one presents nothing at all, and iOS Settings' page for Fastino doesn't list Health.
+  - The row never claims Health is *on* — that is the same fact HealthKit refuses to disclose. It reports only whether we've asked, which is all it may honestly say.
+  - The panels re-read on foreground, so access granted in the Health app shows up on the way back rather than at the next launch.
 - **Denial is invisible to us.** HealthKit will not tell an app whether *reads* were granted; a refusal and an empty Health store look identical. So the empty state says "no data, and here is where to check", never "permission denied".
 - **Sleep is aggregated, not summed.** Health stores sleep as many short samples, and a user with two trackers gets two full sets covering the same night; the union is taken so every second counts once. `inBed` and `awake` are excluded.
 - **Every column is the day a fast ended** — the goal-day rule (§2), applied to both panels. Sleep is credited to the day the user woke, and an evening's last meal to the morning it ends at, so one night's eating stop, fast length and sleep share a column. Where several fasts ended on a day, the longest wins, so the bar and the dot always describe the same fast.

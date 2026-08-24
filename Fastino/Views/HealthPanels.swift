@@ -45,6 +45,11 @@ struct HealthPanels: View {
     /// permission sheet greets the user before they've seen the app (§4.8:
     /// asked the first time these panels are looked at, never at launch).
     @Environment(\.flameTabIsVisible) private var isVisible
+    /// Health access is granted in the Health app, not here, so the only sign
+    /// that it just changed is coming back to the foreground. Without this a
+    /// user who turns Fastino's reads on after seeing "No sleep data" keeps
+    /// seeing it until the app is relaunched.
+    @Environment(\.scenePhase) private var scenePhase
 
     private static let dayCount = 30
 
@@ -88,6 +93,10 @@ struct HealthPanels: View {
             guard isVisible, !hasLoaded else { return }
             hasLoaded = true
             await load()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, isVisible, hasLoaded else { return }
+            Task { await load() }
         }
     }
 
@@ -465,7 +474,7 @@ struct HealthPanels: View {
     /// Deliberately not "permission denied": HealthKit will not tell us whether
     /// reads were granted, so claiming either way would be a guess.
     private static func noDataMessage(_ what: String) -> String {
-        "No \(what) data. If you keep it in Health, allow Fastino to read it in Settings → Privacy → Health."
+        "No \(what) data. If you keep it in Health, allow Fastino to read it — the Settings tab has the switch."
     }
 
     // MARK: Chart chrome
