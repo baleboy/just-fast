@@ -263,6 +263,13 @@ struct FastStore {
 
     func reloadWidgets() {
         WidgetCenter.shared.reloadAllTimelines()
+        #if os(iOS)
+        // A control is not a timeline, so `WidgetCenter` never touches it.
+        // Without this, starting a fast in the app leaves the Control Center
+        // toggle reading "off" until the system next happens to poll its value
+        // provider — which is not on any schedule the app can rely on.
+        ControlCenter.shared.reloadControls(ofKind: FastinoWidgetKind.fastingControl)
+        #endif
     }
 }
 

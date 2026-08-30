@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2599FDB9304419C400C8088B /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25B8C43A303044D4006DE246 /* WidgetKit.framework */; };
+		2599FDBA304419C400C8088B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25B8C43C303044D4006DE246 /* SwiftUI.framework */; };
+		2599FDC7304419C500C8088B /* Fastino WidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2599FDB8304419C400C8088B /* Fastino WidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		25B8C128302D9296006DE246 /* Fastino Watch App Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 25B8C11E302D9295006DE246 /* Fastino Watch App Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		25B8C43B303044D4006DE246 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25B8C43A303044D4006DE246 /* WidgetKit.framework */; };
 		25B8C43D303044D4006DE246 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 25B8C43C303044D4006DE246 /* SwiftUI.framework */; };
@@ -14,6 +17,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		2599FDC5304419C500C8088B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 58B22F903019DCC000633020 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2599FDB7304419C400C8088B;
+			remoteInfo = "Fastino WidgetsExtension";
+		};
 		25B8C126302D9296006DE246 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 58B22F903019DCC000633020 /* Project object */;
@@ -45,6 +55,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		2599FDCC304419C500C8088B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2599FDC7304419C500C8088B /* Fastino WidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		25B8C129302D9296006DE246 /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -70,6 +91,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		2599FDB8304419C400C8088B /* Fastino WidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Fastino WidgetsExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		2599FDD530441A7400C8088B /* Fastino WidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Fastino WidgetsExtension.entitlements"; sourceTree = "<group>"; };
 		25B8C11E302D9295006DE246 /* Fastino Watch App Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fastino Watch App Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		25B8C438303044D4006DE246 /* Fastino Watch WidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Fastino Watch WidgetsExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		25B8C43A303044D4006DE246 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -81,6 +104,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2599FDCB304419C500C8088B /* Exceptions for "Fastino Widgets" folder in "Fastino WidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2599FDB7304419C400C8088B /* Fastino WidgetsExtension */;
+		};
 		25B8C140302D9295006DE246 /* Exceptions for "Fastino Watch App Watch App" folder in "Fastino Watch App Watch App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -105,6 +135,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		2599FDBB304419C400C8088B /* Fastino Widgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2599FDCB304419C500C8088B /* Exceptions for "Fastino Widgets" folder in "Fastino WidgetsExtension" target */,
+			);
+			path = "Fastino Widgets";
+			sourceTree = "<group>";
+		};
 		25B8C11F302D9295006DE246 /* Fastino Watch App Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -147,6 +185,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		2599FDB5304419C400C8088B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2599FDBA304419C400C8088B /* SwiftUI.framework in Frameworks */,
+				2599FDB9304419C400C8088B /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		25B8C11B302D9295006DE246 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -199,6 +246,7 @@
 		58B22F8F3019DCC000633020 = {
 			isa = PBXGroup;
 			children = (
+				2599FDD530441A7400C8088B /* Fastino WidgetsExtension.entitlements */,
 				25B8C44E30304512006DE246 /* Fastino Watch WidgetsExtension.entitlements */,
 				58B22F9A3019DCC000633020 /* Fastino */,
 				58B22FD03019DCC300633020 /* Shared */,
@@ -206,6 +254,7 @@
 				58B22FB63019DCC300633020 /* FastinoUITests */,
 				25B8C11F302D9295006DE246 /* Fastino Watch App Watch App */,
 				25B8C43E303044D4006DE246 /* Fastino Watch Widgets */,
+				2599FDBB304419C400C8088B /* Fastino Widgets */,
 				25B8C439303044D4006DE246 /* Frameworks */,
 				58B22F993019DCC000633020 /* Products */,
 			);
@@ -219,6 +268,7 @@
 				58B22FB33019DCC300633020 /* FastinoUITests.xctest */,
 				25B8C11E302D9295006DE246 /* Fastino Watch App Watch App.app */,
 				25B8C438303044D4006DE246 /* Fastino Watch WidgetsExtension.appex */,
+				2599FDB8304419C400C8088B /* Fastino WidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -226,6 +276,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		2599FDB7304419C400C8088B /* Fastino WidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2599FDC8304419C500C8088B /* Build configuration list for PBXNativeTarget "Fastino WidgetsExtension" */;
+			buildPhases = (
+				2599FDB4304419C400C8088B /* Sources */,
+				2599FDB5304419C400C8088B /* Frameworks */,
+				2599FDB6304419C400C8088B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				2599FDBB304419C400C8088B /* Fastino Widgets */,
+				58B22FD03019DCC300633020 /* Shared */,
+			);
+			name = "Fastino WidgetsExtension";
+			packageProductDependencies = (
+			);
+			productName = "Fastino WidgetsExtension";
+			productReference = 2599FDB8304419C400C8088B /* Fastino WidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		25B8C11D302D9295006DE246 /* Fastino Watch App Watch App */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 25B8C12C302D9296006DE246 /* Build configuration list for PBXNativeTarget "Fastino Watch App Watch App" */;
@@ -282,11 +355,13 @@
 				58B22F953019DCC000633020 /* Frameworks */,
 				58B22F963019DCC000633020 /* Resources */,
 				25B8C129302D9296006DE246 /* Embed Watch Content */,
+				2599FDCC304419C500C8088B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				25B8C127302D9296006DE246 /* PBXTargetDependency */,
+				2599FDC6304419C500C8088B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				58B22F9A3019DCC000633020 /* Fastino */,
@@ -355,6 +430,9 @@
 				LastSwiftUpdateCheck = 2660;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					2599FDB7304419C400C8088B = {
+						CreatedOnToolsVersion = 26.6;
+					};
 					25B8C11D302D9295006DE246 = {
 						CreatedOnToolsVersion = 26.6;
 					};
@@ -393,11 +471,19 @@
 				58B22FB23019DCC300633020 /* FastinoUITests */,
 				25B8C11D302D9295006DE246 /* Fastino Watch App Watch App */,
 				25B8C437303044D4006DE246 /* Fastino Watch WidgetsExtension */,
+				2599FDB7304419C400C8088B /* Fastino WidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		2599FDB6304419C400C8088B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		25B8C11C302D9295006DE246 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -436,6 +522,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		2599FDB4304419C400C8088B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		25B8C11A302D9295006DE246 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -474,6 +567,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		2599FDC6304419C500C8088B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2599FDB7304419C400C8088B /* Fastino WidgetsExtension */;
+			targetProxy = 2599FDC5304419C500C8088B /* PBXContainerItemProxy */;
+		};
 		25B8C127302D9296006DE246 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 25B8C11D302D9295006DE246 /* Fastino Watch App Watch App */;
@@ -497,6 +595,70 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		2599FDC9304419C500C8088B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Fastino WidgetsExtension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8HG4D44UZQ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Fastino Widgets/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Fastino Widgets";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.baleware.fastino.Fastino-Widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		2599FDCA304419C500C8088B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Fastino WidgetsExtension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8HG4D44UZQ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Fastino Widgets/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Fastino Widgets";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.baleware.fastino.Fastino-Widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 		25B8C12A302D9296006DE246 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -911,6 +1073,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		2599FDC8304419C500C8088B /* Build configuration list for PBXNativeTarget "Fastino WidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2599FDC9304419C500C8088B /* Debug */,
+				2599FDCA304419C500C8088B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		25B8C12C302D9296006DE246 /* Build configuration list for PBXNativeTarget "Fastino Watch App Watch App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

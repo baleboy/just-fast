@@ -23,8 +23,10 @@
 //  than each target's own sandbox, because the widget/complication extension
 //  runs in a *different process* and cannot read the app's sandbox. App groups
 //  work between an app and its extensions on one device — unlike iPhone⇄Watch,
-//  which is what CloudKit is for. Extensions open the same file read-only via
-//  `readOnly()`, leaving the app process the only one running mirroring.
+//  which is what CloudKit is for. Extensions that only *display* open the same
+//  file read-only via `readOnly()`; the one that *acts* — the Control Center
+//  toggle (§4.5) — uses `writableShared()`. Neither mirrors, so the app process
+//  remains the only one running CloudKit.
 //
 
 import Foundation
@@ -110,6 +112,30 @@ enum AppContainer {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
             log.error("Could not open the shared store read-only: \(error)")
+            return nil
+        }
+    }
+
+    /// Read-write view of the same store, for the one extension that *acts*
+    /// rather than merely displays: the Control Center toggle (§4.5).
+    ///
+    /// Mirroring is off here for exactly the reason it's off in `readOnly()` —
+    /// the app process owns syncing, and a second CloudKit mirror inside a
+    /// short-lived extension is wasteful and a source of conflicting writes.
+    /// The write is not stranded: Core Data records it in persistent history,
+    /// and the app's mirrored container exports it the next time the app runs.
+    ///
+    /// What this *does* cost is that the running app doesn't notice on its own
+    /// — a cross-process write is not a CloudKit import. `RemoteChangeRefresher`
+    /// is what closes that gap; see the `.NSPersistentStoreRemoteChange`
+    /// observer there.
+    static func writableShared() -> ModelContainer? {
+        guard let url = groupStoreURL else { return nil }
+        let configuration = ModelConfiguration(schema: schema, url: url)
+        do {
+            return try ModelContainer(for: schema, configurations: [configuration])
+        } catch {
+            log.error("Could not open the shared store for writing: \(error)")
             return nil
         }
     }

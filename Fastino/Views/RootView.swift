@@ -54,11 +54,17 @@ enum FlameTab: String, CaseIterable, Identifiable {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
         if let index = arguments.firstIndex(of: "-tab"), index + 1 < arguments.count,
-           let tab = FlameTab.allCases.first(where: { $0.rawValue.lowercased() == arguments[index + 1].lowercased() }) {
+           let tab = named(arguments[index + 1]) {
             return tab
         }
         #endif
         return .timer
+    }
+
+    /// Case-insensitive lookup, shared by the `-tab` launch argument and the
+    /// `fastino://` URL host so the two can't disagree about what "stats" means.
+    static func named(_ name: String) -> FlameTab? {
+        allCases.first { $0.rawValue.lowercased() == name.lowercased() }
     }
 }
 
@@ -157,6 +163,14 @@ struct RootView: View {
         }
         .tint(Theme.accentText)
         .preferredColorScheme(preferredScheme)
+        // The Lock Screen widget's tap target (§4.5). `selection` is @State
+        // here, so this is the only place the app can be told which tab to
+        // show; the widget builds the URL through `FastinoURL`.
+        .onOpenURL { url in
+            guard let name = FastinoURL.tabName(from: url),
+                  let tab = FlameTab.named(name) else { return }
+            selection = tab
+        }
         .onChange(of: openFastCount, initial: true) { _, count in
             reconciler.openFastCountChanged(to: count, context: modelContext)
         }

@@ -236,15 +236,129 @@ the Baleware lockup at the foot; ~1.4s, then a 0.45s crossfade into the app.
   from the site's favicon. It's someone else's mark, so it is not re-tinted by
   the palette the way the app's own colours are.
 
-## Deferred (need additional Xcode targets — not added here)
+## Deferred
 
-These require new build targets in `project.pbxproj`, which can't be added
-reliably by editing the file by hand or verified headlessly.
+Not blocked on anything structural any more — the iOS widget extension exists
+(see below), so these are a view file and a `supportedFamilies` line each.
 
-1. **Widget extension (§4.5)** — Lock Screen circular/rectangular + Home Screen
-   widgets using `Text(timerInterval:)` and the interactive Start intent. Add a
-   Widget Extension target and tick `Shared/` for it.
-(The watch complication is built — see below.)
+1. **Lock Screen rectangular widget (§4.5)** — the layout already exists as the
+   complication's `.accessoryRectangular` family; it is a port, not a design.
+2. **Home Screen small widget (§4.5)** — not a port. §4.5 specifies it with a
+   start/end *toggle*, which means an interactive `Button(intent:)` and so a
+   second write-from-extension path to verify. It also raises a question this
+   change didn't have to answer: whether a Home Screen toggle confirms, given
+   the Control Center one doesn't.
+
+## Built: the iOS widget extension + Control Center control (§4.5)
+
+Target `Fastino WidgetsExtension` in `Fastino Widgets/`, bundle
+`com.baleware.fastino.Fastino-Widgets`, iOS 26.4, `TARGETED_DEVICE_FAMILY = 1`,
+entitlements at the repo root (app group only). Embedded in the app. Two
+surfaces: the Lock Screen `.accessoryCircular` widget, and the Control Center
+toggle.
+
+The bundle id is the wizard's dashed default rather than a tidied
+`…fastino.widgets`, matching `com.baleware.fastino.watchkitapp.Fastino-Watch-Widgets`
+on the sibling extension. It is invisible to users and a prefix-extension of the
+app id, which is all that's required — **not worth renaming once provisioned.**
+
+**Almost nothing lives in the extension.** The entry, the store read, the
+timeline instants, the colour/rendering-mode rules and the circular gauge are all
+in `Shared/Widgets/` and `Shared/Design/FlatFlameMascot.swift`, shared with the
+watch complication (§4.7) — the two surfaces show the same fact from the same
+store at the same size, and one of them quietly disagreeing with the other is
+exactly what sharing them prevents. The complication went from 314 lines to 112
+in the process, and the duplicated smile shape it carried is gone.
+
+### Three container entry points, and which process uses which
+
+- `AppContainer.shared` — the app (and the watch app). Mirrored to CloudKit.
+- `AppContainer.readOnly()` — extensions that only *display*: the complication,
+  the Lock Screen widget, the control's value provider.
+- `AppContainer.writableShared()` — **new**, and used by exactly one thing: the
+  Control Center toggle's `SetFastingIntent`, which runs in the extension
+  process and has to act rather than display.
+
+`writableShared()` does not mirror, so the "one CloudKit mirror, in the app"
+invariant is unchanged. The write is not stranded: Core Data records it in
+persistent history and the app's mirrored container exports it the next time the
+app runs. The alternatives were worse — `openAppWhenRun = true` launches the app
+on every tap, which is not a toggle; and queueing the intent for the app to apply
+later would mean a fast started from Control Center **does not exist** (no row,
+no notification, no sync, no history) until the app is next opened.
+
+### Two things that had to change in the app to make it correct
+
+- **`RemoteChangeRefresher` now watches `.NSPersistentStoreRemoteChange` too**,
+  and calls `mainContext.rollback()` before reconciling. A cross-process write is
+  not a CloudKit import, so the existing observer never saw it; and without the
+  refault, the context keeps the snapshot its objects were faulted with, so
+  `TimerView` shows the state from before the control was tapped right up until
+  relaunch. The cross-process half is deliberately **not** gated on
+  `isCloudKitConfigured` — a local-only fallback store still has an extension
+  writing to it.
+- **`FastStore.reloadWidgets()` now also calls
+  `ControlCenter.shared.reloadControls(ofKind:)`** (iOS only — `FastStore`
+  compiles into the watch app). A control is not a timeline, so `WidgetCenter`
+  never touches it; without this, starting a fast *in the app* leaves the Control
+  Center toggle reading "off" until the system next happens to poll. The kind
+  strings live in `Shared/Widgets/FastinoWidgetKind.swift` because they are
+  agreed between processes and a typo doesn't error, it just means the surface
+  never refreshes. **They are also stored by the system against every widget and
+  control the user has placed, so changing one loses those placements.**
+
+Reconciling notifications from the extension is safe and necessary:
+`NotificationOwnership.schedulesLocally` is unconditionally `true` off watchOS
+(the `WCSession`/`CompanionProbe` path is inside `#if os(watchOS)`), so no
+WatchConnectivity is reachable, and `FastStore` does the reconcile on every write
+anyway. Skipping it would leave a control-started fast with no goal alert armed
+until the app was opened — the same bug this file records for the watch.
+
+### The rest
+
+`SetFastingIntent` is `isDiscoverable = false`: `ToggleFastIntent` (§4.6) is the
+Shortcuts and Back Tap action, and two near-identical entries would make the
+Shortcuts library worse. Its branches guard on `store.openFast()` rather than
+trusting the control's `value`, so a stale snapshot is a no-op instead of an
+`AppError` thrown into Control Center.
+
+A control's label is SF Symbols and text only, so the mascot can't appear there.
+`flame.fill`/`flame` is not a compromise: it's the same status-light vocabulary
+`FlameTab.symbol(fasting:)` uses in the tab bar.
+
+**The `fastino://` URL scheme is new** (`CFBundleURLTypes` in `Fastino/Info.plist`),
+and `FastinoURL` is the only thing that may build one. It exists solely so the
+Lock Screen widget lands on the timer: an accessory widget with no `widgetURL`
+opens the app wherever it was last left, which for a widget about the fast can be
+Settings. `RootView.onOpenURL` is the only external driver of its `@State`
+`selection`.
+
+**What a headless pass does prove.** More than expected, via the simulator's
+logs after an install:
+
+- `chronod` registers both surfaces —
+  `CHSWidgetDescriptor; kind: FastingLockScreen; supportedFamilies: (accessoryCircular)`
+  and `CHSControlDescriptor; kind: com.baleware.fastino.control.fasting;
+  action: appintent:SetFastingIntent`. So the control **is** bound to its intent
+  in the system's database, which is the wiring most likely to be silently wrong.
+- The extension process launches and renders the circular view:
+  `Request ended for FastingLockScreen:accessoryCircular - success`.
+- `Fastino.store` is in the app group container, and **nothing** is logged on the
+  `com.baleware.fastino` subsystem — no "App group unavailable", no "Could not
+  open the shared store", which are the two silent-failure modes.
+- The `fastino://` scheme resolves to Fastino.
+
+**What it can't prove, and why.** WidgetKit only requests a *timeline* for a
+widget that has actually been placed, and `simctl` cannot tap — so it can
+neither add a Lock Screen widget nor open Control Center. iOS also always
+confirms a custom-scheme open from `simctl openurl` with an untappable alert, so
+the deep link's final hop is covered by unit tests over `FastinoURL` and
+`FlameTab.named` rather than by a device. Needs a hand pass: the widget in `.vibrant` on a real Lock Screen; the toggle in
+both states; a control tap with the app backgrounded, then foregrounding it to
+confirm `TimerView` has healed (the `rollback()` regression); starting a fast in
+the app and confirming the control follows; and — on hardware, two devices — a
+control-started fast reaching the watch, which is the persistent-history export
+and cannot be simulated for the same reason watch⇄phone sync can't.
 
 ## Built: the watchOS app (§4.7)
 

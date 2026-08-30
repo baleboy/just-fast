@@ -21,6 +21,17 @@
 		<string>Baloo2-Bold.ttf</string>
 		<string>Baloo2-ExtraBold.ttf</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.baleware.fastino</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fastino</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

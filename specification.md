@@ -98,8 +98,9 @@ Beyond the 7-day strip, the only charts on Stats are the two Apple Health panels
 
 ### 4.5 Lock Screen & Home Screen widgets
 No Live Activities — by decision: the system ends a Live Activity after 8 hours, shorter than any supported fasting window, and restarting from the background would require APNs push-to-start (a server; out of scope). Widgets cover the need without the cap:
-- **Lock Screen accessory widgets** (circular + rectangular) are the persistent glanceable surface. They use WidgetKit timer text (`Text(timerInterval:)`) for a continuously counting elapsed/remaining display — no timeline refreshes needed, no duration cap. When idle, the circular widget is a one-tap **Start fast** button (interactive widget via App Intents); during a fast it shows progress and deep-links into the app.
-- **Home Screen widget** (small): same state + start/end toggle.
+- **Lock Screen accessory widgets** (circular + rectangular) are the persistent glanceable surface. They use WidgetKit timer text (`Text(timerInterval:)`) for a continuously counting elapsed/remaining display — no timeline refreshes needed, no duration cap. **Circular is shipped**; rectangular is not yet built. It shows progress and the whole-hour count in both states and deep-links to the timer via the app's `fastino://` scheme — the widget is about the fast, so landing on whichever tab the app was last left on would be wrong.
+- **Control Center control** (`ControlWidgetToggle`): a plain fasting on/off toggle, using the tab bar's own status-light vocabulary — flame filled while fasting, outline between fasts. **No confirmation**, unlike `ToggleFastIntent` (§4.6): that one confirms because Back Tap fires by accident, which is the whole reason it's safe to bind to a double-tap on the back of the phone; reaching a labelled control in Control Center is already deliberate, so a confirmation there is friction that buys no safety. A mis-tap is undone in History (§4.2). This is the surface that carries the one-tap start the idle circular widget was originally specified to be — a control is what iOS 18 gives that job, and two different start affordances two swipes apart would be worse than one.
+- **Home Screen widget** (small): same state + start/end toggle. Not yet built.
 
 ### 4.6 Shortcuts, Siri & Back Tap
 - App Intents shipped in v1: `StartFastIntent`, `EndFastIntent`, and a **`ToggleFastIntent`** that starts a fast if none is open and ends the open one otherwise.
@@ -193,7 +194,7 @@ Both panels obey the same contract, which is what keeps two scales honest: the *
 
 - **Portrait only**, iPhone and iPad. The screens are one tall column each — a ring stack, a bento, a settings list — and the design was drawn at 402×874; nothing here gains from a landscape variant.
 - SwiftUI throughout; iOS 26 / watchOS 26 minimum (free app, no legacy-support pressure; adopt current widget & Live Activity APIs without fallbacks).
-- Targets: iOS app, watchOS app, Widget extension, shared Swift package for model + streak/stat engine.
+- Targets: iOS app, watchOS app, iOS widget extension, watch widget extension, and a shared source folder (`Shared/`) for model + streak/stat engine, rather than a Swift package.
 - The streak/stat engine is a pure function of `[Fast]` + time zone — unit-test it exhaustively (midnight spans, TZ shifts, overlaps, edits).
 - App Intents expose `StartFastIntent` / `EndFastIntent` / `ToggleFastIntent` (§4.6) — one implementation reused by widgets, watch, Shortcuts, Siri, and Back Tap.
 - No backend, no analytics SDK. Zero telemetry — by decision, consistent with the app's no-accounts, no-backend stance.
