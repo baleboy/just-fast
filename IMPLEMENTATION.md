@@ -570,7 +570,7 @@ pre-existing and both now fixed:
 
 ## App Store readiness
 
-Two things were settled here rather than left to the submission:
+Three things were settled here rather than left to the submission:
 
 - **iPhone only.** `TARGETED_DEVICE_FAMILY` was `1,2` with both orientation
   keys set to portrait, which is the `All interface orientations must be
@@ -588,22 +588,39 @@ Two things were settled here rather than left to the submission:
   (ITMS-91053). `UserDefaults` is the only required-reason API the app touches;
   a new call to one (file timestamps, disk space, boot time, active keyboards)
   has to be declared there or the upload fails.
+- **`ITSAppUsesNonExemptEncryption` is `false`**, in the iOS *and* the watch
+  `Info.plist` — the two bundles App Store Connect assesses separately. The app
+  ships no cryptography of its own; the only encryption it touches is the HTTPS
+  the system performs inside CloudKit, which is exempt. Unanswered, the question
+  is asked by hand on every upload and holds the build at "Missing Compliance",
+  out of testers' hands, until someone answers it. Adding encryption that isn't
+  the platform's own makes this `true` and the answer stops being free.
 
 Still outstanding before submission, and none of them live in this repo:
 
 1. **Deploy the CloudKit schema to Production.** SwiftData creates record types
    in the *Development* environment only; an App Store build talks to
-   Production. Ship without this and sync silently fails for everyone.
+   Production. Ship without this and sync silently fails for everyone. **This
+   gates the first TestFlight upload, not just the submission** — a TestFlight
+   build is an App Store distribution build and uses Production too.
+   Only the two optional attributes are at risk of being missed, since Core Data
+   encodes an attribute into a `CKRecord` only when it has a value and every
+   other attribute is defaulted: `Fast.end` needs a *completed* fast and
+   `Fast.note` a fast *with a note*, both of which `-seedDemo` writes. Verify
+   with `xcrun cktool export-schema` rather than by eye, and confirm the
+   Settings sync row before trusting any of it — `AppContainer` falls back to a
+   local store silently, which pushes no schema at all. Production schema
+   changes are additive-only and irreversible.
 2. **HealthKit capability on the App ID** in the developer portal (see §4.8
    above).
 3. **A privacy policy URL** — mandatory in App Store Connect, and scrutinised
-   for a HealthKit app. Nothing in Settings links to one yet.
+   for a HealthKit app. Nothing in Settings links to one yet. It gates
+   *external* TestFlight too, since that goes through Beta App Review; internal
+   testers need neither the policy nor a review.
 4. **Confirm `aps-environment` becomes `production`** in the exported ipa; both
    entitlements files say `development` and rely on Xcode's export step
    rewriting it.
-5. **`ITSAppUsesNonExemptEncryption`** is unset, so every upload asks the
-   export-compliance question by hand.
-6. Verify on hardware what a simulator can't: phone↔watch sync,
+5. Verify on hardware what a simulator can't: phone↔watch sync,
    `HealthKitProvider` against a real Health store, and notification ownership
    on a genuinely paired watch.
 

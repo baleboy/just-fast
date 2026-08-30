@@ -36,5 +36,14 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<!-- Export compliance. The app ships no encryption of its own; the only
+	     cryptography it touches is the HTTPS the system performs on its behalf
+	     inside CloudKit, which is exempt. Declaring it here answers the question
+	     App Store Connect otherwise asks by hand on every single upload, holding
+	     the build at "Missing Compliance" — and so out of testers' hands — until
+	     someone answers it. If the app ever adds encryption that isn't the
+	     platform's own, this has to become true and the answer stops being free. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
