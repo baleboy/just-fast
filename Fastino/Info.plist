@@ -4,6 +4,17 @@
 <dict>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Fastino shows your sleep and weight alongside your fasting history, so you can see how they move together. The data stays on your device and is never uploaded.</string>
+	<!-- Fastino never writes to Health: HealthKitProvider passes `toShare: []`
+	     at both call sites and calls no save API, and §4.8 keeps it that way.
+	     The key is here anyway because upload validation demands both Health
+	     purpose strings from any binary that *links* HealthKit, write or not —
+	     without it the build is rejected outright. iOS only ever presents this
+	     string when an app requests share authorisation, which this one never
+	     does, so no user will see it; it says what it says so that the plist
+	     stays true to the code if anyone reads it. Should the app ever write a
+	     sample, this has to be rewritten to describe that, honestly. -->
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Fastino never writes anything to Health. It only reads your sleep and weight, to show them alongside your fasting history.</string>
 	<key>INAlternativeAppNames</key>
 	<array>
 		<dict>

@@ -570,7 +570,7 @@ pre-existing and both now fixed:
 
 ## App Store readiness
 
-Three things were settled here rather than left to the submission:
+Four things were settled here rather than left to the submission:
 
 - **iPhone only.** `TARGETED_DEVICE_FAMILY` was `1,2` with both orientation
   keys set to portrait, which is the `All interface orientations must be
@@ -595,6 +595,14 @@ Three things were settled here rather than left to the submission:
   is asked by hand on every upload and holds the build at "Missing Compliance",
   out of testers' hands, until someone answers it. Adding encryption that isn't
   the platform's own makes this `true` and the answer stops being free.
+
+- **Both Health purpose strings**, though the app only reads. Upload validation
+  demands `NSHealthUpdateUsageDescription` from any binary that *links*
+  HealthKit and never checks whether a write API is called, so the read-only
+  key alone is rejected. The string says the app never writes, which is true —
+  `toShare: []` at both `HealthKitProvider` call sites — and iOS never presents
+  it, since it only appears on a share request. The watch needs neither string:
+  it has no HealthKit entitlement and never links the framework.
 
 Still outstanding before submission, and none of them live in this repo:
 
