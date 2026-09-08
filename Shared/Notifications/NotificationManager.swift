@@ -150,6 +150,23 @@ final class NotificationManager {
         )
     }
 
+    /// Drop every pending goal and milestone alert, whichever fast armed it.
+    ///
+    /// For `CompanionListener`, which is told that a fast is or isn't running
+    /// but not which fasts this device previously armed alerts for — the watch
+    /// may have deleted one and started another while the phone was asleep.
+    /// Everything the phone still wants is re-armed immediately afterwards.
+    /// `async` because the caller arms the replacements the instant it returns:
+    /// a completion-handler version can land its removal *after* the new
+    /// requests are added and take them with it.
+    func cancelFastNotifications() async {
+        let identifiers = await center.pendingNotificationRequests()
+            .map(\.identifier)
+            .filter { $0.hasPrefix("goal-") || $0.hasPrefix("milestone-") }
+        guard !identifiers.isEmpty else { return }
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+    }
+
     // MARK: Start reminder (§4.4)
 
     /// Arm the daily "time to start your fast?" nudge at the user's start-time

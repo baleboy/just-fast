@@ -5,10 +5,15 @@
 //  Asks one question of WatchConnectivity: is the iPhone app installed?
 //
 //  That answer decides who schedules notifications (see `NotificationOwnership`).
-//  It is the *only* thing this file does — no `sendMessage`, no application
-//  context, no file transfer. The two apps share data through CloudKit, and
-//  routing any of it through WatchConnectivity instead would reintroduce the
-//  phone-must-be-reachable dependency the standalone design exists to avoid.
+//  It is the only thing this file does — no data crosses here. The two apps
+//  share their fasts through CloudKit, and routing any of that through
+//  WatchConnectivity instead would reintroduce the phone-must-be-reachable
+//  dependency the standalone design exists to avoid.
+//
+//  `CompanionRelayTransport` sends on the same session, and is the one
+//  deliberate exception: what it sends is scheduling state, not a fast. It
+//  needs this file only for the moment activation completes, since a session
+//  that hasn't activated can't transfer anything.
 //
 //  Lives in the watch target rather than `Shared/` so WatchConnectivity never
 //  links into the iOS binary, which has no use for it.
@@ -89,6 +94,10 @@ final class CompanionProbe: NSObject {
             // we should no longer own and arms what we now do.
             FastStore(context: AppContainer.shared.mainContext).reconcileNotifications()
         }
+        // Anything the store raised before the session was ready — a fast
+        // started seconds after launch — goes out now (§4.4).
+        if activated { CompanionRelayTransport.flush() }
+
         finishWaiters(with: NotificationOwnership.schedulesLocally)
     }
 

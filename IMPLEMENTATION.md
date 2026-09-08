@@ -96,7 +96,9 @@ repeating calendar trigger, since the anchor never moves). Permission is request
 lazily (on first start / when a reminder is enabled), not on launch. Scheduling
 failures are logged; Settings surfaces an explicit "Notifications are turned
 off" row when iOS won't present alerts; everything is re-armed on launch and on
-foreground. Foreground alerts stay suppressed on purpose (no
+foreground, and a fast started on the watch re-arms them through
+`CompanionRelay` rather than waiting for the phone to be opened (see the watch
+section). Foreground alerts stay suppressed on purpose (no
 `UNUserNotificationCenterDelegate`) — the app-open cue is the in-ring "Goal
 reached" line + success haptic (§5).
 
@@ -432,6 +434,34 @@ gap on a standalone watch's first launch beats duplicate alerts on every paired
 one. Cancelling is ungated. In DEBUG, `-forceWatchNotifications` and
 `-deferWatchNotifications` force either branch, which is the only way to reach
 the standalone path on a paired watch.
+
+**The watch tells the phone directly when a fast starts or ends**
+(`CompanionRelay` in `Shared/Notifications/`, `CompanionRelayTransport` on the
+watch, `CompanionListener` on the phone). It is the one thing that doesn't
+travel through CloudKit, because cancelling a notification isn't something
+CloudKit can carry: the start reminder is a repeating calendar trigger armed on
+the *phone*, `removePendingNotificationRequests` is device-local, and a
+suspended phone runs no code. Start a fast on the watch at 19:45 with the phone
+in a pocket and the 20:00 reminder to start a fast fires anyway — mirroring's
+silent push is best-effort and budget-throttled, and this is the case where it
+doesn't arrive in time. `transferUserInfo` does wake a suspended counterpart, so
+that is the transport; the iOS session is activated from an `AppDelegate`,
+because a background launch may never bring the scene up.
+
+What crosses is **scheduling state, not the record of truth** — the open fast's
+id, start and goal, or nothing — and the phone writes none of it: the fast still
+arrives as a CloudKit import, and the next `reconcileNotifications()` reads the
+store and overwrites what the relay armed. The phone cancels every pending
+`goal-`/`milestone-` request and re-arms from the payload, since the watch may
+have discarded the fast the phone armed for and started another. One direction
+only (the watch schedules nothing while a phone app exists), payloads older than
+the last applied are dropped, outstanding transfers are cancelled before a new
+one is queued, and a send raised before `WCSession` activation is held and
+flushed by `CompanionProbe`. Both ends drop a `Watch relay` marker in `SyncLog`,
+so "was the phone actually woken?" is answerable from the diagnostics screen.
+The wire format and the staleness rule are unit-tested in
+`FastinoTests/CompanionRelayTests.swift`; the transport is not, and no mock
+session stands in for it.
 
 ## Built: the watch complication (§4.7)
 

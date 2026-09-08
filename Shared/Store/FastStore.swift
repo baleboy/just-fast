@@ -122,6 +122,7 @@ struct FastStore {
         NotificationManager.shared.scheduleMilestoneNotifications(for: fast.record, enabled: settings.milestoneNotificationsEnabled)
         NotificationManager.shared.cancelStartReminder() // suppressed while a fast runs (§4.4)
         reloadWidgets()
+        announceToCompanion()
 
         return FastActionResult(kind: .started, fast: fast.record)
     }
@@ -166,6 +167,7 @@ struct FastStore {
         // the start reminder that was suppressed needs re-arming.
         reconcileNotifications()
         reloadWidgets()
+        announceToCompanion()
 
         return FastActionResult(
             kind: .ended,
@@ -205,6 +207,7 @@ struct FastStore {
         SyncLog.shared.recordLocalWrite("add manual")
         reconcileNotifications()
         reloadWidgets()
+        announceToCompanion()
     }
 
     /// Edit start/end/note of an existing fast (§4.2). Recomputes side effects.
@@ -217,6 +220,7 @@ struct FastStore {
         SyncLog.shared.recordLocalWrite("edit")
         reconcileNotifications()
         reloadWidgets()
+        announceToCompanion()
     }
 
     /// Re-goal the fast in progress, because the user asked for it in as many
@@ -240,6 +244,7 @@ struct FastStore {
         SyncLog.shared.recordLocalWrite("re-goal")
         reconcileNotifications()
         reloadWidgets()
+        announceToCompanion()
     }
 
     func delete(_ fast: Fast) {
@@ -251,6 +256,7 @@ struct FastStore {
         NotificationManager.shared.cancelMilestoneNotifications(for: id)
         reconcileNotifications()
         reloadWidgets()
+        announceToCompanion()
     }
 
     // MARK: Side effects
@@ -271,6 +277,17 @@ struct FastStore {
         } else {
             NotificationManager.shared.cancelStartReminder()
         }
+    }
+
+    /// Tell the paired phone whether a fast is running, so it can cancel or
+    /// re-arm the notifications only it can schedule (§4.4).
+    ///
+    /// A no-op on every device but a watch with a phone app installed — see
+    /// `CompanionRelay`, which is unwired everywhere else. Called from the
+    /// mutations rather than from `reloadWidgets()`, which a CloudKit import
+    /// also calls: announcing back what the phone just told us is an echo.
+    func announceToCompanion() {
+        CompanionRelay.announce(openFast: openFast()?.record)
     }
 
     func reloadWidgets() {

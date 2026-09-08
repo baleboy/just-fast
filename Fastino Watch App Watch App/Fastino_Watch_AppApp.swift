@@ -38,7 +38,14 @@ struct Fastino_Watch_App_Watch_AppApp: App {
                     // Resolves who owns notifications, and re-arms them if the
                     // answer changed since last launch (§4.4).
                     CompanionProbe.shared.activate()
+                    // The phone can't cancel a notification it was never told
+                    // to cancel, and it may have been asleep when we last
+                    // wrote (§4.4). Announcing on launch and on every resume
+                    // closes the gap where a send was raised before the session
+                    // finished activating, or failed while out of range.
+                    CompanionRelayTransport.install()
                     reconcileNotifications()
+                    announceToCompanion()
                     await syncStatus.refreshAccountStatus()
                 }
                 .onChange(of: scenePhase) { _, phase in
@@ -61,6 +68,7 @@ struct Fastino_Watch_App_Watch_AppApp: App {
                     // completed while the app was backgrounded or not running,
                     // where the observer above was never alive to see it.
                     RemoteChangeRefresher.shared.refresh(container: AppContainer.shared)
+                    announceToCompanion()
                     Task { await syncStatus.refreshAccountStatus() }
                 }
         }
@@ -70,5 +78,10 @@ struct Fastino_Watch_App_Watch_AppApp: App {
     @MainActor
     private func reconcileNotifications() {
         FastStore(context: AppContainer.shared.mainContext).reconcileNotifications()
+    }
+
+    @MainActor
+    private func announceToCompanion() {
+        FastStore(context: AppContainer.shared.mainContext).announceToCompanion()
     }
 }

@@ -8,8 +8,23 @@
 import SwiftUI
 import SwiftData
 
+/// Exists for one reason: WatchConnectivity has to be listening on a *background*
+/// launch (§4.4). The watch wakes this app by transferring the fact that a fast
+/// started, and a scene's `.task` is no place to activate the session — the
+/// system may launch the process without ever bringing the scene up.
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        CompanionListener.shared.start()
+        return true
+    }
+}
+
 @main
 struct FastinoApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
 
     /// Owned here, not by SettingsView: CloudKit mirroring reports success or
@@ -27,6 +42,10 @@ struct FastinoApp: App {
                     // not a local write and so runs none of FastStore's side
                     // effects on its own (§4.7).
                     RemoteChangeRefresher.shared.start(container: AppContainer.shared)
+                    // Idempotent; the app delegate has normally done this
+                    // already. Here too so a launch path that somehow skipped
+                    // the delegate still ends up listening.
+                    CompanionListener.shared.start()
                     DemoSeeder.seedIfNeeded(context: AppContainer.shared.mainContext)
                     reconcileNotifications()
                     await syncStatus.refreshAccountStatus()

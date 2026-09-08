@@ -28,7 +28,9 @@ Six facts, in the same order on both, so the two can be read side by side:
 Events lists the last 50, newest first, including ones still in flight — an
 import that started forty seconds ago and hasn't finished is the most
 diagnostic state there is, and it only shows up because in-flight events are
-recorded. **App active** marks every resume, so the question the background
+recorded. **Watch relay** marks a hand-off over WatchConnectivity, `sent` on the watch and
+`received` on the phone — the only way to see, from the device, whether the
+phone was actually woken when the watch started a fast. **App active** marks every resume, so the question the background
 case turns on — *does an import follow a resume, or only a cold launch?* — is
 answered by reading down the list.
 
@@ -112,6 +114,15 @@ the seconds and the outcome.
 | 7 | Start from **Control Center** on the phone, don't open the app | Open the watch | **Known not to sync** — that write happens in the widget extension with mirroring off (`SetFastingIntent`), and only reaches CloudKit when the phone app next runs |
 | 8 | End a fast on the phone | Watch open | Complication stops counting too (`RemoteChangeRefresher`) |
 | 9 | Standalone watch (phone app deleted) | Start and end on the watch | Works throughout; notifications come from the watch (`NotificationOwnership`) |
+| 10 | Phone backgrounded, start reminder due in a few minutes | Start on the **watch**, leave the phone alone | No reminder fires. The phone's diagnostics show a **Watch relay · received** with no import before it — that's the relay doing its job, not CloudKit |
+
+Row 10 is the one the relay exists for, and it's the one that used to fail (the
+reminder is armed on the phone; only the phone can cancel it). It's worth
+running against a real reminder time rather than a contrived one: set the
+anchor to a couple of minutes out in Settings, background the phone, start on
+the watch, and wait past it. A **Watch relay** row on both devices — `sent` on
+the watch, `received` on the phone — is the proof the phone was woken; its
+absence on the phone means it wasn't, and the reminder will fire.
 
 ## Recording results
 

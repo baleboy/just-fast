@@ -133,6 +133,11 @@ nonisolated enum SyncEventKind: String, Codable, Sendable {
     /// or only a cold launch?" is unanswerable without a mark in the log for
     /// where the resume was.
     case appActive
+    /// The watch telling the phone directly that a fast started or ended
+    /// (`CompanionRelay`). Not a CloudKit event either: it is the only way to
+    /// see, from the device, whether the phone was actually woken — which is
+    /// the whole question that path exists to settle.
+    case relay
 
     var displayName: String {
         switch self {
@@ -141,6 +146,7 @@ nonisolated enum SyncEventKind: String, Codable, Sendable {
         case .exporting: "Export"
         case .localWrite: "Local write"
         case .appActive: "App active"
+        case .relay: "Watch relay"
         }
     }
 }
@@ -374,6 +380,20 @@ final class SyncLog {
         record(SyncEvent(
             id: UUID(),
             kind: .localWrite,
+            device: SyncEvent.deviceName,
+            started: now,
+            ended: now,
+            succeeded: true,
+            detail: label
+        ))
+    }
+
+    /// Note a `CompanionRelay` hand-off, sent or received.
+    func recordRelay(_ label: String) {
+        let now = Date()
+        record(SyncEvent(
+            id: UUID(),
+            kind: .relay,
             device: SyncEvent.deviceName,
             started: now,
             ended: now,
