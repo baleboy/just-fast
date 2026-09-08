@@ -346,7 +346,7 @@ private struct SettingsForm: View {
     /// never cries wolf while mirroring is still starting up (§3).
     @ViewBuilder
     private var syncStatusRow: some View {
-        if case .unavailable(let reason) = syncStatus.health {
+        if case .unavailable(let reason) = syncStatus.health, ScreenshotFlags.showsSyncWarning {
             CardGroup {
                 // No trailing chevron: there's nothing here to tap, and the fix
                 // is in iOS Settings rather than anywhere Fastino can send you.

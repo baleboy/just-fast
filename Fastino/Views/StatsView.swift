@@ -37,6 +37,12 @@ struct StatsView: View {
     private func content(_ summary: StatsSummary) -> some View {
         ScrollView {
             VStack(spacing: 12) {
+                // The store screenshot pass brings the panels above the fold,
+                // because simctl can't scroll to them (DEBUG only).
+                if ScreenshotFlags.healthPanelsFirst {
+                    HealthPanels(provider: DebugLaunch.healthProvider)
+                }
+
                 VStack(alignment: .leading, spacing: -2) {
                     Text("Your journey")
                         .flameScreenTitle()
@@ -63,7 +69,9 @@ struct StatsView: View {
                 // Sleep and weight from Apple Health (§4.8), in line rather
                 // than behind a link — a screen you have to go looking for is
                 // one most people never see.
-                HealthPanels(provider: DebugLaunch.healthProvider)
+                if !ScreenshotFlags.healthPanelsFirst {
+                    HealthPanels(provider: DebugLaunch.healthProvider)
+                }
             }
             .padding(.horizontal, FlameLayout.screenHorizontalPadding)
             .padding(.top, FlameLayout.screenTopPadding)

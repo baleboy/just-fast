@@ -219,3 +219,11 @@ private func previewContainer(openFastHoursAgo: Double?) -> ModelContainer {
 #Preview("Ready") {
     WatchTimerView().modelContainer(previewContainer(openFastHoursAgo: nil))
 }
+
+/// 10h into a 16:8 fast — the state the iPhone hero screenshot shows, so the
+/// two devices in the store panel are looking at the same fast
+/// (docs/store/copy.md). Appended last so the earlier previews keep their
+/// indices.
+#Preview("Fasting — 10h, store hero") {
+    WatchTimerView().modelContainer(previewContainer(openFastHoursAgo: 10))
+}

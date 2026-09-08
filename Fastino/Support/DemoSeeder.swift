@@ -77,15 +77,28 @@ enum DemoSeeder {
         // panel (§4.8) shows up immediately. The calendar days, and so the
         // streak and the week strip, are unaffected.
         for daysAgo in 1...(seedsHistory ? 89 : 4) {
+            // The most recent three weeks are a clean run: no missed days, and
+            // enough slack above the goal (below) that the wobble can't pull a
+            // fast under it. That's what the Stats screenshot needs — a streak
+            // worth the headline over it (docs/store/copy.md) — and it's the
+            // record a user on plan actually has. Further back the history is
+            // mixed, which is what keeps the gaps, the under-goal badges and
+            // the empty week-strip stubs exercised.
+            let isCleanRun = daysAgo <= 21
             // A couple of missed days a month, so the gaps are exercised.
-            if seedsHistory, daysAgo % 17 == 5 { continue }
+            if seedsHistory, !isCleanRun, daysAgo % 17 == 5 { continue }
             let day = cal.date(byAdding: .day, value: -daysAgo, to: now)!
             let end = cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day
             // Fixed 16h15m normally. With a long history, the stop time moves
             // with the same wobble the health fixture uses (above), so a longer
             // fast means an earlier stop and a longer night.
+            //
+            // The slack is what decides whether a fast meets its goal: the
+            // wobble spans ±1h, so 15 minutes of it puts roughly two days in
+            // five under goal, while 1h15m puts none of them there.
             let wobble = seedsHistory ? sin(Double(daysAgo) * 0.7) : 0
-            let start = end.addingTimeInterval(-Double(goal) * 3600 - 900 - wobble * 3600)
+            let slack: Double = (seedsHistory && isCleanRun) ? 4500 : 900
+            let start = end.addingTimeInterval(-Double(goal) * 3600 - slack - wobble * 3600)
             let fast = Fast(start: start, end: end, goalHours: goal, protocolID: "16:8", createdVia: .app)
             // A few notes, so History's note line has something to draw — one
             // short, one long enough to truncate, one with a second line the

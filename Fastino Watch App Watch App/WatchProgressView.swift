@@ -172,7 +172,10 @@ struct WatchProgressView: View {
     let container = AppContainer.inMemory()
     let context = container.mainContext
     context.insert(AppSettings())
-    for day in 1...5 {
+    // 21 days, matching the streak `DemoSeeder` builds on the phone — the two
+    // devices appear side by side in the store panels (docs/store/copy.md) and
+    // shouldn't disagree about how long the streak is.
+    for day in 1...21 {
         let start = Date().addingTimeInterval(-Double(day) * 86_400)
         context.insert(Fast(
             start: start,

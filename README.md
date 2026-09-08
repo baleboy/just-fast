@@ -2,7 +2,7 @@
 
 A minimal iOS intermittent-fasting tracker. Logging a fast should be nearly invisible — one tap, or a double-tap on the back of the phone — while the statistics stay comprehensive and out of the way until you ask for them.
 
-No accounts, no backend, no analytics, no subscriptions. Your data stays on your device.
+No accounts, no backend, no analytics, no subscriptions. Your data stays on your devices and in your own private iCloud.
 
 <p align="center">
   <img src="docs/screenshot.png" alt="The Fastino timer part-way through a 16-hour fast: the flame mascot inside the zone-banded progress ring, with the elapsed time and the clock time the fast ends" width="285">
@@ -26,6 +26,12 @@ Streaks are strict by design: no freezes, no rest days. A goal day is a calendar
 
 **Shortcuts, Siri and Back Tap.** "Hey Siri, start fasting" / "stop fasting" — Start and End ship as App Shortcuts, with app-name aliases so the phrase reads naturally. A state-aware `Toggle` intent lives in the Shortcuts app and asks for confirmation, which is what makes it safe to bind to a Back Tap double-tap — the app's headline interaction.
 
+**Apple Watch.** A watch app that installs with the iPhone app *or* entirely without it — three pages, timer in the middle. It talks to CloudKit itself rather than proxying through the phone, so starting, ending and correcting a fast all work with the phone out of range, and it carries the settings a plan needs to work at all. Plus a complication for the face and the Smart Stack.
+
+**Lock Screen and Control Center.** A circular Lock Screen widget that counts without a single timeline refresh, and a Control Center toggle that starts or ends a fast from anywhere — writing through the same validated store the app does.
+
+**Apple Health, read-only.** Two panels at the foot of Stats: your weekly fasting hours against your weight, and when you stopped eating against how much sleep followed. Read-only, never written back, never stored — HealthKit data may not be synced to iCloud, and this container mirrors to CloudKit.
+
 **Export.** Every fast as a CSV — start, end, goal, duration, goal met — through the share sheet. It's your data.
 
 **Warm by default.** The "Flame Friend" look: peach paper by day, a cozy campfire night in dark mode where the flame and the ring actually glow, Baloo 2 throughout, chunky buttons that press like real ones, and celebrations — an ignite, a zone-crossing flash, a burst of embers at the goal — that last under two seconds and respect Reduce Motion. Missing a goal is reported neutrally, never with shame.
@@ -33,6 +39,7 @@ Streaks are strict by design: no freezes, no rest days. A goal day is a calendar
 ## Requirements
 
 - iOS 26.4 or later (iPhone)
+- watchOS 26.5 or later, for the watch app
 - Xcode 26.x
 
 ## Building
@@ -51,7 +58,7 @@ xcodebuild test -scheme Fastino -destination 'platform=iOS Simulator,name=iPhone
 
 Or just open `Fastino.xcodeproj` and hit Run.
 
-Debug-only launch arguments help with screenshots: `-seedDemo` (a streak plus an active fast), `-seedEating` (the between-fasts state), and `-tab stats` / `-tab settings` to open on another tab.
+Debug-only launch arguments help with screenshots: `-seedDemo` (a streak plus an active fast), `-seedEating` (the between-fasts state), `-seedHistory` (three months of fasts), `-fixtureHealth` (data for the Health panels), `-noSplash`, and `-tab stats` / `-tab history` / `-tab settings` to open on another tab. `-noSyncWarning` and `-healthPanelsFirst` exist for the App Store pass — see [`docs/store/copy.md`](docs/store/copy.md).
 
 ## Architecture
 
@@ -61,23 +68,20 @@ SwiftUI and SwiftData throughout, in three layers:
 
 **Persistence and a single write path** — `Store/FastStore.swift` is the only place a fast is ever mutated. The UI and the App Intents all go through it, so validation, notification scheduling and widget reloads happen identically no matter where a fast was started from. The SwiftData models keep every attribute defaulted and avoid unique constraints, which keeps the schema CloudKit-compatible.
 
-**Surfaces** — four tabs (Timer, Stats, History, Settings), plus the App Intents.
+**Surfaces** — four tabs (Timer, Stats, History, Settings), the App Intents, the watchOS app, and the two widget extensions. All of them read and write through the same store, which is why the pure core is worth keeping pure.
 
-Tests use swift-testing (`@Suite` / `@Test`): 59 tests across 9 suites, all against the pure core.
+Tests use swift-testing (`@Suite` / `@Test`): 158 tests across 25 suites, all against the pure core.
 
 ### Not built yet
 
-The engine and intents are structured for reuse by these, but each needs an additional Xcode target:
-
-- Lock Screen and Home Screen widgets
-- watchOS app and complications
-- CloudKit sync — the schema is already compatible; enabling it means setting a real container identifier in `Fastino.entitlements` and flipping `cloudKitDatabase` to `.automatic` in `Store/AppContainer.swift`
+- Lock Screen *rectangular* and Home Screen widgets. The circular Lock Screen widget and the Control Center toggle ship; these two reuse the same shared timeline code.
 
 ## Documentation
 
 - [`specification.md`](specification.md) — the product and technical specification, and the source of truth. Source files reference its sections (`§2`, `§4.6`) in their headers.
 - [`IMPLEMENTATION.md`](IMPLEMENTATION.md) — what is built versus deferred.
 - [`CLAUDE.md`](CLAUDE.md) — orientation for AI coding agents.
+- [`docs/store/copy.md`](docs/store/copy.md) — the App Store listing text and the five screenshot panels, with the capture recipe for each.
 - [`design_handoff_fastino_flame_friend/`](design_handoff_fastino_flame_friend) — the design handoff the current screens were built from.
 
 ## Privacy
