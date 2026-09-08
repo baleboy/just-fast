@@ -44,7 +44,7 @@ import SwiftData
 final class RemoteChangeRefresher {
     static let shared = RemoteChangeRefresher()
 
-    private var observer: (any NSObjectProtocol)?
+    private var isObservingImports = false
     private var crossProcessObserver: (any NSObjectProtocol)?
     private let log = Logger(subsystem: "com.baleware.fastino", category: "CloudSync")
 
@@ -57,22 +57,17 @@ final class RemoteChangeRefresher {
         // The import half is a no-op when mirroring was never configured —
         // there is nothing to import from. The cross-process half above is not,
         // which is why it is started first and separately.
-        guard observer == nil, AppContainer.isCloudKitConfigured else { return }
+        guard !isObservingImports, AppContainer.isCloudKitConfigured else { return }
+        isObservingImports = true
 
-        observer = NotificationCenter.default.addObserver(
-            forName: NSPersistentCloudKitContainer.eventChangedNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            let key = NSPersistentCloudKitContainer.eventNotificationUserInfoKey
-            guard let event = note.userInfo?[key] as? NSPersistentCloudKitContainer.Event,
-                  event.type == .import,
-                  event.endDate != nil,
-                  event.succeeded
-            else { return }
-            Task { @MainActor [weak self] in
-                self?.refresh(container: container)
-            }
+        // One observer of `eventChangedNotification` lives in `SyncLog`; this
+        // subscribes to it. The filter is exactly the one this class used to
+        // apply itself: only a completed, successful import carries data this
+        // device hasn't already acted on.
+        SyncLog.shared.start()
+        SyncLog.shared.subscribe { [weak self] event in
+            guard event.kind == .importing, event.isFinished, event.succeeded else { return }
+            self?.refresh(container: container)
         }
     }
 

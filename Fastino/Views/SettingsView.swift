@@ -43,6 +43,11 @@ private struct SettingsForm: View {
     /// Whether iOS is currently refusing to present our alerts. Without this the
     /// toggles below look fully functional while nothing can ever fire (§4.4).
     @State private var alertsBlocked = false
+    #if DEBUG
+    /// The sync diagnostics sheet (DEBUG only). A sheet rather than a push
+    /// because the tab shell has no navigation stack to push onto.
+    @State private var showingSyncDiagnostics = DebugLaunch.opensSyncDiagnostics
+    #endif
     /// A plan tapped while a fast is running — held until the user says whether
     /// the fast in progress should take the new goal too.
     @State private var pendingProtocol: FastingProtocol?
@@ -137,6 +142,11 @@ private struct SettingsForm: View {
             .padding(.top, FlameLayout.screenTopPadding)
             .flameTabBarClearance()
         }
+        #if DEBUG
+        .sheet(isPresented: $showingSyncDiagnostics) {
+            SyncDiagnosticsView()
+        }
+        #endif
         // Two outcomes, not one warning. The old dialog announced that the
         // running fast kept its old goal and gave the user no say — but someone
         // switching plans mid-fast usually means *this* fast, and the goal is
@@ -331,14 +341,36 @@ private struct SettingsForm: View {
                 item: FastsCSVFile(text: FastExport.csv(fasts.records)),
                 preview: SharePreview("Fastino fasts")
             ) {
-                SettingsRow(title: "Export data", subtitle: "\(fasts.count) fasts as CSV", isLast: true) {
+                SettingsRow(title: "Export data", subtitle: "\(fasts.count) fasts as CSV", isLast: !isDebugBuild) {
                     RowValue(text: "")
                 }
             }
             .buttonStyle(FlamePressStyle())
             .disabled(fasts.isEmpty)
             .opacity(fasts.isEmpty ? 0.5 : 1)
+
+            #if DEBUG
+            // Not a product surface: the shipping answer to "is sync working"
+            // is `syncStatusRow` above, which only ever speaks up when it isn't.
+            Button {
+                showingSyncDiagnostics = true
+            } label: {
+                SettingsRow(title: "Sync diagnostics", subtitle: "Debug builds only", isLast: true) {
+                    RowValue(text: "")
+                }
+            }
+            .buttonStyle(FlamePressStyle())
+            #endif
         }
+    }
+
+    /// Lets the row above know whether it is still the last one.
+    private var isDebugBuild: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
     }
 
     /// Shown only once sync has actually been observed failing, so the app never

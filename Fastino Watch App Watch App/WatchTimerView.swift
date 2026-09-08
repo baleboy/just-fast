@@ -30,13 +30,54 @@ struct WatchTimerView: View {
     @Query(sort: \Fast.start, order: .reverse) private var fasts: [Fast]
     @Query(sort: \AppSettings.updatedAt, order: .reverse) private var settingsList: [AppSettings]
 
+    /// Optional because previews inject no environment; a watch with no verdict
+    /// yet is treated as one that might still be about to hear from the phone.
+    @Environment(CloudSyncStatus.self) private var syncStatus: CloudSyncStatus?
+
     @State private var reconciler = SyncReconciler()
     @State private var errorMessage: String?
+    /// Flipped by the `.task` below when the window's deadline passes. It is
+    /// purely a re-render trigger — mutating `@State` invalidates the view, and
+    /// `SyncLog.isAwaitingImport()` is the authority on what to show. A view
+    /// that had to notice time passing on its own would need a per-second
+    /// timeline, and the idle screen is not worth one.
+    @State private var syncWaitElapsed = false
+
+    /// Preview-only override: `nil` computes the state, `true`/`false` force it.
+    ///
+    /// It has to work in *both* directions. `simctl` never syncs, so forcing it
+    /// on is the only way to look at the waiting state — and a preview process
+    /// does open the real mirrored container, so `isCloudKitConfigured` is true
+    /// there and the ready preview would otherwise sit on "Checking" for the
+    /// whole timeout before settling.
+    var checkingOverride: Bool?
 
     private var store: FastStore { FastStore(context: modelContext) }
     private var openFast: Fast? { fasts.first(where: \.isOpen) }
     private var goalHours: Int {
         openFast?.goalHours ?? settingsList.first?.activeProtocol.goalHours ?? 16
+    }
+
+    /// Whether this launch might still be waiting to hear about a fast running
+    /// on the phone.
+    ///
+    /// The screen otherwise states "Ready" the instant it appears, because a
+    /// store that hasn't imported yet and a store with genuinely no fast in it
+    /// look identical from here — and on watchOS the first import routinely
+    /// lands seconds after launch. Saying "Ready" and then contradicting it is
+    /// what makes sync feel broken even on the occasions it works.
+    ///
+    /// A device that is signed out or offline skips the wait: it has nothing to
+    /// wait *for*, and "Checking" that never resolves is a worse lie than the
+    /// one this replaces.
+    private var isCheckingSync: Bool {
+        if let checkingOverride { return checkingOverride }
+        guard openFast == nil else { return false }
+        if case .unavailable = syncStatus?.health { return false }
+        // Not gated on `syncWaitElapsed`: past the deadline the wait continues
+        // while an import is actually running, and giving up on one that is
+        // about to land is exactly the contradiction this state exists to stop.
+        return SyncLog.shared.isAwaitingImport()
     }
 
     var body: some View {
@@ -50,6 +91,21 @@ struct WatchTimerView: View {
                 content(ringSize: ringSize)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        // Keyed on the window, so a resume that reopens one restarts the timer
+        // rather than leaving `syncWaitElapsed` stuck true from launch — which
+        // is the whole point: the app is far more often resumed than launched.
+        .task(id: SyncLog.shared.awaitWindowStartedAt) {
+            syncWaitElapsed = false
+            // Ends the wait at the deadline. `importArrivedInWindow` is
+            // observed, so an import landing first ends it without this.
+            let log = SyncLog.shared
+            let remaining = log.awaitWindowTimeout
+                - Date().timeIntervalSince(log.awaitWindowStartedAt)
+            if remaining > 0 {
+                try? await Task.sleep(for: .seconds(remaining))
+            }
+            syncWaitElapsed = true
         }
         .onChange(of: fasts.count(where: \.isOpen), initial: true) { _, count in
             reconciler.openFastCountChanged(to: count, context: modelContext)
@@ -71,7 +127,7 @@ struct WatchTimerView: View {
             if let fast = openFast {
                 activeRing(for: fast.record, size: ringSize)
             } else {
-                idleRing(size: ringSize)
+                idleRing(size: ringSize, checking: isCheckingSync)
             }
             actionButton
         }
@@ -123,25 +179,34 @@ struct WatchTimerView: View {
         }
     }
 
-    private func idleRing(size: CGFloat) -> some View {
+    /// The same ring in both states — only the copy changes. Deliberately not a
+    /// spinner: the difference between "no fast" and "don't know yet" is a
+    /// caption, not a different screen, and the mascot is already the right
+    /// mascot for waiting.
+    private func idleRing(size: CGFloat, checking: Bool) -> some View {
         ZStack {
             FlameRing(content: .waiting, diameter: size)
             VStack(spacing: 2) {
                 FlameMascot.pilotLight(palette: Theme.palette(for: .dark), height: size * 0.26)
-                Text("Ready")
+                Text(checking ? "Checking" : "Ready")
                     .font(.flameFixed(17, .extraBold))
                     .foregroundStyle(Theme.ink)
-                Text("\(goalHours)h fast")
+                Text(checking ? "iCloud…" : "\(goalHours)h fast")
                     .font(.flameFixed(11, .semibold))
                     .foregroundStyle(Theme.muted)
             }
             .frame(width: FlameRing.innerDiameter(for: size) * 0.94)
         }
         .frame(width: size, height: size)
+        .animation(.easeInOut(duration: 0.2), value: checking)
     }
 
     // MARK: Action
 
+    /// Enabled throughout, including while `isCheckingSync` is true: a
+    /// standalone watch must be able to begin a fast without waiting on a
+    /// network. If that races an inbound import the result is two open fasts,
+    /// which is exactly what `SyncReconciler` and `OpenFastMerge` exist for.
     private var actionButton: some View {
         Button {
             toggle()
@@ -217,7 +282,8 @@ private func previewContainer(openFastHoursAgo: Double?) -> ModelContainer {
 }
 
 #Preview("Ready") {
-    WatchTimerView().modelContainer(previewContainer(openFastHoursAgo: nil))
+    WatchTimerView(checkingOverride: false)
+        .modelContainer(previewContainer(openFastHoursAgo: nil))
 }
 
 /// 10h into a 16:8 fast — the state the iPhone hero screenshot shows, so the
@@ -226,4 +292,12 @@ private func previewContainer(openFastHoursAgo: Double?) -> ModelContainer {
 /// indices.
 #Preview("Fasting — 10h, store hero") {
     WatchTimerView().modelContainer(previewContainer(openFastHoursAgo: 10))
+}
+
+/// The state a watch shows for the first few seconds after launch while it is
+/// still waiting to hear whether the phone has a fast running. Unreachable from
+/// `simctl`, which never syncs.
+#Preview("Checking iCloud") {
+    WatchTimerView(checkingOverride: true)
+        .modelContainer(previewContainer(openFastHoursAgo: nil))
 }

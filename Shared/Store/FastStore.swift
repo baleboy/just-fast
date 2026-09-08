@@ -6,6 +6,12 @@
 //  and the watch all mutate through these methods, so validation, notification
 //  scheduling and widget reloads happen consistently regardless of entry point.
 //
+//  Every mutation also drops a marker in `SyncLog`. Being the only write path is
+//  what makes that worth doing: the marker is the anchor the CloudKit export
+//  after it, and the import on the other device, are measured against when sync
+//  is under suspicion. It is not wired into `reloadWidgets()`, which imports and
+//  reconciles also call — those are not writes.
+//
 
 import Foundation
 import SwiftData
@@ -110,6 +116,7 @@ struct FastStore {
         )
         context.insert(fast)
         try context.save()
+        SyncLog.shared.recordLocalWrite("start (\(createdVia.rawValue))")
 
         NotificationManager.shared.scheduleGoalNotification(for: fast.record, enabled: settings.goalNotificationEnabled)
         NotificationManager.shared.scheduleMilestoneNotifications(for: fast.record, enabled: settings.milestoneNotificationsEnabled)
@@ -147,6 +154,7 @@ struct FastStore {
         if let note { fast.note = note.nilIfBlank }
         if createdVia != .app { fast.createdVia = createdVia }
         try context.save()
+        SyncLog.shared.recordLocalWrite("end (\(createdVia.rawValue))")
 
         let closed = fast.record
         let after = records()
@@ -194,6 +202,7 @@ struct FastStore {
         )
         context.insert(fast)
         try context.save()
+        SyncLog.shared.recordLocalWrite("add manual")
         reconcileNotifications()
         reloadWidgets()
     }
@@ -205,6 +214,7 @@ struct FastStore {
         fast.end = end
         fast.note = note?.nilIfBlank
         try context.save()
+        SyncLog.shared.recordLocalWrite("edit")
         reconcileNotifications()
         reloadWidgets()
     }
@@ -227,6 +237,7 @@ struct FastStore {
         fast.goalHours = proto.goalHours
         fast.protocolID = proto.rawValue
         try context.save()
+        SyncLog.shared.recordLocalWrite("re-goal")
         reconcileNotifications()
         reloadWidgets()
     }
@@ -235,6 +246,7 @@ struct FastStore {
         let id = fast.id
         context.delete(fast)
         try? context.save()
+        SyncLog.shared.recordLocalWrite("delete")
         NotificationManager.shared.cancelGoalNotification(for: id)
         NotificationManager.shared.cancelMilestoneNotifications(for: id)
         reconcileNotifications()

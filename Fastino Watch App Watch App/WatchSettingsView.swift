@@ -137,6 +137,16 @@ private struct WatchSettingsForm: View {
                 .padding(.vertical, 2)
             }
         }
+        #if DEBUG
+        // The exception to "watch settings are a subset": when sync looks
+        // broken, the watch is the device the evidence has to be readable on.
+        Section {
+            NavigationLink("Sync diagnostics") {
+                WatchSyncDiagnosticsView()
+            }
+            .font(.flameFixed(13, .extraBold))
+        }
+        #endif
     }
 
     // MARK: Plan

@@ -42,7 +42,17 @@ struct Fastino_Watch_App_Watch_AppApp: App {
                     await syncStatus.refreshAccountStatus()
                 }
                 .onChange(of: scenePhase) { _, phase in
-                    guard phase == .active else { return }
+                    guard phase == .active else {
+                        SyncLog.shared.markBackground()
+                        return
+                    }
+                    // Before the refresh below, so the log shows the resume
+                    // ahead of anything it triggers — and so the wait window
+                    // reopens before the views read it. This is the case that
+                    // matters most on the watch: an app resumed from the
+                    // background gets no mirroring *setup*, so unlike a cold
+                    // launch there is nothing guaranteed to pull.
+                    SyncLog.shared.markForeground()
                     // Re-arms notifications, as FastinoApp does: scheduling
                     // otherwise only happens at write time, so anything that
                     // failed then — most often because permission hadn't been

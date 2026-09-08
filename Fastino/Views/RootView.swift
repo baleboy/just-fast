@@ -101,6 +101,16 @@ enum DebugLaunch {
         return true
         #endif
     }
+
+    /// Opens the sync diagnostics sheet straight from launch. The screen is
+    /// behind a Settings row, and `simctl` can't tap — same reason `-tab` exists.
+    static var opensSyncDiagnostics: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-syncDiagnostics")
+        #else
+        return false
+        #endif
+    }
 }
 
 struct RootView: View {

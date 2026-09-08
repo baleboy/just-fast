@@ -23,9 +23,23 @@ struct WatchProgressView: View {
 
     @Query(sort: \Fast.start, order: .reverse) private var fasts: [Fast]
 
+    /// Optional because previews inject no environment — see `WatchTimerView`.
+    @Environment(CloudSyncStatus.self) private var syncStatus: CloudSyncStatus?
+
     @State private var editing: Fast?
+    @State private var syncWaitElapsed = false
 
     private var records: [FastRecord] { fasts.records }
+
+    /// The same wait the timer page shows, for the same reason: an empty list is
+    /// indistinguishable from a list that hasn't imported yet, and "No fasts
+    /// yet" is a strong claim to make about someone's history three seconds
+    /// after launch.
+    private var isCheckingSync: Bool {
+        guard fasts.isEmpty else { return false }
+        if case .unavailable = syncStatus?.health { return false }
+        return SyncLog.shared.isAwaitingImport()
+    }
 
     var body: some View {
         NavigationStack {
@@ -41,6 +55,16 @@ struct WatchProgressView: View {
                 .listStyle(.plain)
             }
             .navigationTitle("Progress")
+        }
+        .task(id: SyncLog.shared.awaitWindowStartedAt) {
+            syncWaitElapsed = false
+            let log = SyncLog.shared
+            let remaining = log.awaitWindowTimeout
+                - Date().timeIntervalSince(log.awaitWindowStartedAt)
+            if remaining > 0 {
+                try? await Task.sleep(for: .seconds(remaining))
+            }
+            syncWaitElapsed = true
         }
         .sheet(item: $editing) { fast in
             WatchFastDetailView(fast: fast)
@@ -120,7 +144,7 @@ struct WatchProgressView: View {
 
         return Section("Recent") {
             if listed.isEmpty {
-                Text("No fasts yet.")
+                Text(isCheckingSync ? "Checking iCloud…" : "No fasts yet.")
                     .font(.flameFixed(12, .semibold))
                     .foregroundStyle(Theme.muted)
             } else {

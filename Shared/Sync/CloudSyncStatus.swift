@@ -11,8 +11,10 @@
 //  that any data moved.
 //
 //  `NSPersistentCloudKitContainer.eventChangedNotification` is the supported
-//  way to find out. It's a global notification, so we can observe it without a
-//  handle on the container itself, which SwiftData doesn't vend.
+//  way to find out. It's a global notification, so it can be observed without a
+//  handle on the container itself, which SwiftData doesn't vend — but it is
+//  observed once, by `SyncLog`, which this subscribes to. The filter below is
+//  unchanged from when it registered its own observer.
 //
 //  The state starts `.unknown` and only becomes `.unavailable` once a setup or
 //  sync event has actually failed — a warning that flashes up during normal
@@ -42,10 +44,8 @@ final class CloudSyncStatus {
 
     private(set) var health: Health = .unknown
 
-    /// `nonisolated(unsafe)` so `deinit` can unregister: deinit is nonisolated,
-    /// and this is only ever written once from the main actor in `start()`.
     @ObservationIgnored
-    private nonisolated(unsafe) var observer: (any NSObjectProtocol)?
+    private var isObserving = false
     private let log = Logger(subsystem: "com.baleware.fastino", category: "CloudSync")
 
     /// Re-check the iCloud account. Cheap, and worth repeating on foreground —
@@ -76,7 +76,12 @@ final class CloudSyncStatus {
     }
 
     func start() {
-        guard observer == nil else { return }
+        guard !isObserving else { return }
+        isObserving = true
+
+        // Started even when mirroring was never configured, so the diagnostics
+        // screens still have a launch timestamp to measure against.
+        SyncLog.shared.start()
 
         guard AppContainer.isCloudKitConfigured else {
             // We never even got as far as requesting mirroring.
@@ -84,20 +89,11 @@ final class CloudSyncStatus {
             return
         }
 
-        observer = NotificationCenter.default.addObserver(
-            forName: NSPersistentCloudKitContainer.eventChangedNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            let key = NSPersistentCloudKitContainer.eventNotificationUserInfoKey
-            guard let event = note.userInfo?[key] as? NSPersistentCloudKitContainer.Event else { return }
-            // Ignore events still in flight — only completed ones carry a verdict.
-            guard event.endDate != nil else { return }
-            let succeeded = event.succeeded
-            let description = event.error?.localizedDescription
-            Task { @MainActor [weak self] in
-                self?.apply(succeeded: succeeded, error: description)
-            }
+        SyncLog.shared.subscribe { [weak self] event in
+            // Ignore events still in flight — only completed ones carry a
+            // verdict — and local writes, which aren't CloudKit's business.
+            guard event.isFinished, event.kind != .localWrite else { return }
+            self?.apply(succeeded: event.succeeded, error: event.detail)
         }
     }
 
@@ -112,7 +108,4 @@ final class CloudSyncStatus {
         )
     }
 
-    deinit {
-        if let observer { NotificationCenter.default.removeObserver(observer) }
-    }
 }

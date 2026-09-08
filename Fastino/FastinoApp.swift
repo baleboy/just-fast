@@ -32,7 +32,11 @@ struct FastinoApp: App {
                     await syncStatus.refreshAccountStatus()
                 }
                 .onChange(of: scenePhase) { _, phase in
-                    guard phase == .active else { return }
+                    guard phase == .active else {
+                        SyncLog.shared.markBackground()
+                        return
+                    }
+                    SyncLog.shared.markForeground()
                     // Reconciles notifications and reloads widgets in one pass —
                     // this also catches an import that completed while the app
                     // was backgrounded, where the observer saw the event but the
