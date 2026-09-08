@@ -3,7 +3,8 @@
 //  Fastino
 //
 //  Reverse-chronological history grouped by month (§4.3), its own tab. Tap a
-//  row to edit; the + adds a missed fast retroactively (§4.2).
+//  row to edit, swipe it left to delete; the + adds a missed fast
+//  retroactively (§4.2).
 //
 //  It draws its own title and + rather than using a navigation bar: it sits
 //  beside three other chrome-less tabs, and a system bar here would be the one
@@ -19,6 +20,8 @@ struct HistoryView: View {
 
     @State private var editing: Fast?
     @State private var addingManual = false
+
+    private var store: FastStore { FastStore(context: modelContext) }
 
     private var sections: [(title: String, fasts: [Fast])] {
         let calendar = Calendar.current
@@ -93,6 +96,19 @@ struct HistoryView: View {
                                 HistoryRow(fast: fast)
                             }
                             .listRowBackground(Theme.card)
+                            // Swipe to delete, straight through the store so the
+                            // notifications, widgets and streaks all follow. No
+                            // confirmation — a swipe is already deliberate, and the
+                            // edit sheet keeps its confirmed Delete for the
+                            // deliberate-but-slower route. A running fast is the one
+                            // exception: it can't be re-created from memory the way a
+                            // logged one can, so it costs a tap on the button rather
+                            // than one long flick.
+                            .swipeActions(edge: .trailing, allowsFullSwipe: !fast.isOpen) {
+                                Button("Delete", role: .destructive) {
+                                    store.delete(fast)
+                                }
+                            }
                         }
                     }
                 }

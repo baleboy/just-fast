@@ -70,6 +70,7 @@ Derived (never stored): current streak, longest streak, longest fast, averages, 
 
 ### 4.2 Editing & retroactive entry
 - Any fast in history can be edited (start, end, note) or deleted.
+- Deletion has two routes: the confirmed **Delete fast** button in the edit sheet, and a **left swipe on the history row**, which deletes without confirming — the swipe is already deliberate. A full swipe completes the delete, except on the *open* fast: a running fast can't be reconstructed from memory the way a logged one can, so it costs a tap on the revealed button.
 - The end-fast sheet carries a **note field** as well as the time, so the reflection is captured while it's fresh rather than needing a second trip through History. It is seeded with any note the fast already has; clearing it removes the note. Starting a fast has no such field — there is nothing to say yet.
 - A completely missed fast can be added manually with arbitrary start/end.
 - Validation: `end > start`; fasts may not overlap an existing fast (edit is rejected with a clear message identifying the conflicting fast); duration capped at 7 days (sanity guard against typos).
