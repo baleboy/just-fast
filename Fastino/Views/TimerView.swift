@@ -20,6 +20,9 @@ struct TimerView: View {
 
     @State private var showStartSheet = false
     @State private var showEndSheet = false
+    /// The time the open sheet is currently offering. Bound into `AdjustTimeSheet`
+    /// so the ring behind it previews what confirming would produce (§4.1).
+    @State private var sheetDate = Date()
     @State private var recordBanner: String?
     @State private var errorMessage: String?
 
@@ -64,9 +67,22 @@ struct TimerView: View {
 
                 if let openFast {
                     ActiveFastContent(
-                        fast: openFast,
+                        record: openFast.record,
+                        // While the end sheet is open the ring stops at the time
+                        // being offered, so the elapsed count, the zone and the
+                        // fill are the ones "End fast" would record.
+                        previewingAt: showEndSheet ? sheetDate : nil,
                         reduceMotion: reduceMotion,
-                        onEnd: { showEndSheet = true }
+                        onEnd: { present(&showEndSheet) }
+                    )
+                } else if showStartSheet {
+                    // Nothing has started yet, so the preview is a fast that
+                    // began at the offered time — the ring the user would land on.
+                    ActiveFastContent(
+                        record: FastRecord(start: sheetDate, end: nil, goalHours: activeProtocol.goalHours),
+                        isPreview: true,
+                        reduceMotion: reduceMotion,
+                        onEnd: {}
                     )
                 } else {
                     RestingContent(
@@ -74,7 +90,7 @@ struct TimerView: View {
                         lastFast: lastClosedFast,
                         streak: FastingEngine.currentStreak(fasts.records, now: Date(), timeZone: .current),
                         activeProtocol: activeProtocol,
-                        onStart: { showStartSheet = true }
+                        onStart: { present(&showStartSheet) }
                     )
                 }
             }
@@ -95,7 +111,7 @@ struct TimerView: View {
                 title: "Start fast",
                 actionLabel: "Start fast",
                 accent: Theme.accentText,
-                date: Date()
+                date: $sheetDate
             ) { date, _ in
                 // Ask for notification permission at the moment it's first useful
                 // (so the goal alert can fire) rather than nagging on launch.
@@ -111,7 +127,7 @@ struct TimerView: View {
                 actionLabel: "End fast",
                 accent: Theme.accentText,
                 earliest: openFast?.start,
-                date: Date(),
+                date: $sheetDate,
                 collectsNote: true,
                 note: openFast?.note ?? "",
                 onConfirm: { date, note in perform { try store.endFast(at: date, note: note) } },
@@ -140,6 +156,12 @@ struct TimerView: View {
             }
             #endif
         }
+    }
+
+    /// Sheets open on "now", and the preview behind them reads the same value.
+    private func present(_ flag: inout Bool) {
+        sheetDate = Date()
+        flag = true
     }
 
     private func perform(_ action: () throws -> FastActionResult) {
@@ -174,7 +196,12 @@ struct TimerView: View {
 // MARK: - Active fast
 
 private struct ActiveFastContent: View {
-    let fast: Fast
+    let record: FastRecord
+    /// When set, the fast is drawn as of this instant instead of the live clock —
+    /// the end time an open sheet is offering.
+    var previewingAt: Date? = nil
+    /// Set for a fast that doesn't exist yet (the start sheet's preview).
+    var isPreview: Bool = false
     let reduceMotion: Bool
     let onEnd: () -> Void
 
@@ -189,9 +216,8 @@ private struct ActiveFastContent: View {
     @State private var didCelebrateGoal = false
 
     var body: some View {
-        TimelineView(.periodic(from: fast.start, by: 1)) { context in
-            let now = context.date
-            let record = fast.record
+        TimelineView(.periodic(from: record.start, by: 1)) { context in
+            let now = previewingAt ?? context.date
             let elapsed = record.duration(asOf: now)
             let reached = elapsed >= record.goalInterval
             let zone = MetabolicZone.current(elapsed: elapsed)
@@ -269,11 +295,14 @@ private struct ActiveFastContent: View {
                     action: onEnd
                 )
             }
+            // A time still being scrubbed isn't a crossing that happened, so
+            // neither flashes nor haptics fire for it.
             .onChange(of: zone) { _, newZone in
+                guard !previewing else { return }
                 crossZone(into: newZone, palette: palette)
             }
             .onChange(of: reached) { _, isReached in
-                if isReached && !didCelebrateGoal {
+                if isReached && !didCelebrateGoal && !previewing {
                     didCelebrateGoal = true
                     celebrateGoal()
                 }
@@ -286,12 +315,14 @@ private struct ActiveFastContent: View {
 
     /// Two entrances: a fast that was *just* started ignites (an expanding ring
     /// flash), any other appearance sweeps the fill up from zero.
+    private var previewing: Bool { isPreview || previewingAt != nil }
+
     private func startUp() {
-        guard !reduceMotion else {
+        guard !reduceMotion && !previewing else {
             fillScale = 1
             return
         }
-        let justStarted = Date().timeIntervalSince(fast.start) < 2
+        let justStarted = Date().timeIntervalSince(record.start) < 2
         if justStarted {
             fillScale = 0
             withAnimation(.easeOut(duration: 0.9)) { fillScale = 1 }

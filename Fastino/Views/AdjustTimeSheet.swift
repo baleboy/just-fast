@@ -11,6 +11,10 @@
 //  `.compact` date+time picker handles the rare exact-time / different-day edit
 //  by expanding into an overlay popover, so it never pushes the button offscreen.
 //
+//  The time is bound, not owned: the ring left visible above the sheet previews
+//  the fast this time would produce (§4.1), so the answer is on screen before
+//  the button is pressed.
+//
 
 import SwiftUI
 
@@ -20,7 +24,9 @@ struct AdjustTimeSheet: View {
     let accent: Color
     /// Lower bound for the picker (e.g. an end can't precede the start).
     var earliest: Date? = nil
-    @State var date: Date
+    /// Bound rather than owned, so the screen behind can preview what confirming
+    /// this time would produce while the user is still nudging it (§4.1).
+    @Binding var date: Date
     /// Whether the sheet collects a note as well as a time. Only the end sheet
     /// does: a note is a reflection on the fast just finished, and there is
     /// nothing to say about one that hasn't started (§4.1).
