@@ -341,7 +341,7 @@ private struct SettingsForm: View {
                 item: FastsCSVFile(text: FastExport.csv(fasts.records)),
                 preview: SharePreview("Fastino fasts")
             ) {
-                SettingsRow(title: "Export data", subtitle: "\(fasts.count) fasts as CSV", isLast: !isDebugBuild) {
+                SettingsRow(title: "Export data", subtitle: "\(fasts.count) fasts as CSV") {
                     RowValue(text: "")
                 }
             }
@@ -355,23 +355,35 @@ private struct SettingsForm: View {
             Button {
                 showingSyncDiagnostics = true
             } label: {
-                SettingsRow(title: "Sync diagnostics", subtitle: "Debug builds only", isLast: true) {
+                SettingsRow(title: "Sync diagnostics", subtitle: "Debug builds only") {
                     RowValue(text: "")
                 }
             }
             .buttonStyle(FlamePressStyle())
             #endif
+
+            // Kept in General rather than beside the Apple Health row: the
+            // policy has to be reachable on a device with no Health store,
+            // where that whole card is absent.
+            Button {
+                openURL(Self.privacyPolicy)
+            } label: {
+                SettingsRow(
+                    title: "Privacy policy",
+                    subtitle: "What Fastino reads, and what never leaves your device.",
+                    isLast: true
+                ) {
+                    RowValue(text: "")
+                }
+            }
+            .buttonStyle(FlamePressStyle())
         }
     }
 
-    /// Lets the row above know whether it is still the last one.
-    private var isDebugBuild: Bool {
-        #if DEBUG
-        true
-        #else
-        false
-        #endif
-    }
+    /// The policy App Store Connect points at, and the same page the listing
+    /// links — a HealthKit app is reviewed against what this says, so the two
+    /// move together or not at all.
+    private static let privacyPolicy = URL(string: "https://www.baleware.com/fastino/privacy-policy.html")!
 
     /// Shown only once sync has actually been observed failing, so the app never
     /// implies data is reaching the user's other devices when it isn't — and

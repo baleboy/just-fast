@@ -652,9 +652,17 @@ Still outstanding before submission, and none of them live in this repo:
 2. **HealthKit capability on the App ID** in the developer portal (see §4.8
    above).
 3. **A privacy policy URL** — mandatory in App Store Connect, and scrutinised
-   for a HealthKit app. Nothing in Settings links to one yet. It gates
-   *external* TestFlight too, since that goes through Beta App Review; internal
-   testers need neither the policy nor a review.
+   for a HealthKit app: it has to name the Health data read and carry the
+   no-advertising / no-data-mining / no-sharing clauses, which a generic
+   publisher policy wouldn't. Written and published at
+   `https://www.baleware.com/fastino/privacy-policy.html` (source in the
+   `baleware-home` repo, `fastino/privacy-policy.html` plus its Markdown under
+   `docs/fastino/`), and linked from the **General** card in Settings —
+   deliberately there rather than beside the Apple Health row, which is hidden
+   when there's no Health store. **The page and the app move together**: a
+   change to what Fastino reads, stores or syncs is a change to that page. It
+   gates *external* TestFlight too, since that goes through Beta App Review;
+   internal testers need neither the policy nor a review.
 4. **Confirm `aps-environment` becomes `production`** in the exported ipa; both
    entitlements files say `development` and rely on Xcode's export step
    rewriting it.
