@@ -50,7 +50,7 @@ Capture: `-seedDemo -seedHistory -fixtureHealth -tab stats -noSplash`, light.
 ### 4 — Apple Health · iPhone · **dark**
 
 > **Your fasts, next to your sleep**
-> Weight and sleep read from Apple Health, on the same axis as the hours you fasted.
+> Weight against the hours you fasted; your last meal against the night that followed.
 
 The depth claim, and the one panel where dark mode does double duty: it shows the app has
 a fully designed night appearance without spending a panel on it.
@@ -112,8 +112,9 @@ averages. Streaks are strict — no freezes, no rest days — and every number i
 from your fasts, so an edit is always reflected correctly.
 
 **Apple Health, read-only**
-See your weight and your sleep on the same timeline as your fasting hours. Fastino reads
-from Health and never writes to it, and Health data is never stored or synced.
+See your weight against the hours you fasted, and how long you slept against when you
+stopped eating, one dot a night. Fastino reads from Health and never writes to
+it, and Health data is never stored or synced.
 
 **On your Lock Screen and in Control Center**
 A Lock Screen widget counts your fast without draining anything, a Control Center toggle
@@ -205,8 +206,14 @@ the headline), while 1h15m puts none of them there. `WatchProgressView`'s previe
 same 21 days, so the watch in panel 2 and the phone in panel 3 agree about the streak.
 
 A side effect worth knowing: longer fasts mean earlier stop-eating times, so the dots on
-panel 4's night panel now sit at or below the 20:00 anchor rather than straddling it. That
-reads as on-plan, which is the better picture anyway.
+panel 4's sleep scatter sit at or left of the 20:00 anchor rather than straddling it. That
+reads as on-plan, which is the better picture anyway. And because the seeder's stop wobble
+and the fixture's sleep wobble are the same sine, an earlier stop comes with a longer
+sleep — the cloud slopes down to the right, which is the shape the panel is for. It's
+mild, and it should stay mild: the screenshot must not oversell what a month of real data
+will show. The two tiles under it split 22 nights against 3 for the same reason — the seeded
+stops sit mostly before the anchor — which is honest about the demo data and fine for the
+shot; the levels either side of the rule are what the eye reads.
 
 ### Still to do
 

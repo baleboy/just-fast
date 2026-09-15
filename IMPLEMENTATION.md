@@ -118,32 +118,73 @@ work. Toggle stays a Shortcuts-app action for Back Tap.
 Read-only, iOS-only. `HealthPanels` sits at the foot of `StatsView`, under the
 week strip and the History row — in line rather than behind a link of its own,
 because a screen you have to go looking for is one most people never see. Two
-dual-axis panels — weight over fasting hours, and the eating stop over hours
-asleep — on one shared 30-day date axis. The only Swift Charts in the app,
-styled entirely from `Theme`.
+panels over the last 30 days — weight over fasting hours on a date axis, and one
+dot a night of when eating stopped against the hours slept after. The only Swift
+Charts in the app, styled entirely from `Theme`.
 
 The fasting/weight panel is by the calendar week: `FastingEngine.weeklyAverageHours`
 for the bars (`WeeklyFastAverageTests`) and `WeightSeries.weeklyMean` for the
 line (`WeightSeriesTests.swift`), both bucketed by `FastingEngine.weekStart` —
 the one locale-aware date function in the engine, since the first day of the
 week is the user's own convention. Day-to-day weight is mostly water and one
-fast can't have moved a week's average. The shared date domain is snapped out to
-whole weeks so the weekly bars and both panels' grid lines land on real week
-boundaries.
+fast can't have moved a week's average. The date domain is snapped out to whole
+weeks so the weekly bars and the grid lines land on real week boundaries.
 
-Both panels follow one contract: bars are that panel's hours against the
-trailing axis, the overlaid line or dots go against the leading one, and only
-the hours axis draws grid lines. Each chart is drawn in its bars' scale with
-the second series projected into it and every label converted back
-(`project`/`clock(at:)`, `project`/`mass(at:)`, labelled through
-`overlayAxis`).
+Only the weight panel is dual-axis, and it has to be: kilograms and hours have
+no common unit. It follows a contract that keeps the two scales honest — bars
+are hours against the trailing axis, the weight line goes against the leading
+one, only the hours axis draws grid lines, and the chart is drawn in the bars'
+scale with weight projected into it and every label converted back
+(`project`/`mass(at:)`, labelled through `overlayAxis`).
 
-The night panel is the one the section is built around: `FastingEngine.eatingStops`
-(our own data, not Health's) as dots on a clock axis in signed hours from
-midnight, over bars of each night's total time asleep. Covered by
-`EatingStopTests` in `FastingEngineTests.swift`: the signed-hours scale staying
+The sleep panel is the one the section is built around, and it is a scatter:
+`FastingEngine.eatingStops` (our own data, not Health's) across, in signed hours
+from midnight, and `SleepNight.hours` — the day's total asleep — up, one
+`PointMark` per night that has both. A dashed vertical rule marks the user's
+start-time anchor. `Shared/Health/SleepScatterScale.swift` is the pure half
+(both domains, whole-hour ticks, the not-zero-based sleep axis, the anchor rule,
+and the ±8h filter that stops a morning-started fast sizing the x axis), covered
+by `SleepScatterScaleTests.swift`; the series itself is covered by
+`EatingStopTests` in `FastingEngineTests.swift` — the signed-hours scale staying
 continuous across midnight, the longest-fast-per-day rule matching `lastDays`,
-the open fast landing on today, DST, and time-zone bucketing.
+the open fast landing on today, DST, and time-zone bucketing. `Panel` takes an
+optional date domain: the top panel has one and gets the week grid, the scatter
+passes `nil` and brings its own axes. Its one summary is `SleepSplit`
+(`Shared/Health/`, `SleepSplitTests.swift`): mean sleep either side of the
+anchor — or the lower median stop when there is no anchor — drawn as a level
+across each side and set out under the chart as two `SplitTile`s (the bento's
+label / number / caption stack on the peach surface, no shadow), and `nil`
+unless both sides have three nights. Means, not a fit: that's the line.
+
+**It was drawn twice before this, and both times the drawing was honest and
+the question unanswerable.** The question is whether stopping eating earlier
+goes with sleeping longer. Dual-axis first: the stop dots had no scale of their
+own and were projected onto the sleep-hours scale purely so they could be
+drawn, so whatever shape the eye found was an artifact of the projection, and a
+`LineMark` joined them, implying a continuity between nightly events that
+doesn't exist. Then a timeline on one real clock axis — a dot where eating
+stopped, a band from falling asleep to waking, a stem between them — thirty
+dated columns of it. Nothing projected, every distance meaning what it looked
+like, and still unreadable for the purpose: hours asleep only existed as the
+length of a band, which the eye can't compare across thirty columns, and a
+month of real data couldn't be told either way. Putting the two facts on the
+two axes is what answers it, and it adds no computed claim — which is the line
+the cut below draws.
+
+**And the nights were wrong until the timeline made it obvious.** `SleepNight.mainSleep*`
+was the longest *unbroken* asleep stretch, chosen so an afternoon nap couldn't
+run the night from last evening to this teatime. The defence was right, the
+mechanism wasn't: a watch scores brief awakenings all night, so the longest
+unbroken run of an eight-hour night is an hour or two, and the panel drew every
+night as a short smear at a random offset. `SleepAggregator` now groups stretches
+into sleeps by `nightGap` (3h) and takes the one with the most sleep in it — the
+nap defence intact, the night whole. `FixtureHealthProvider` used to hand over
+finished `SleepNight`s; it now emits fragmented spans through the real
+aggregator, because a fixture that skips the code under test cannot show a bug in
+it. Covered by `watchScoredNightIsOneNight` and `anHourUpIsStillOneNight`. The
+scatter plots the total rather than the main sleep, so `mainSleep*` is no longer
+drawn — but it is still computed, still tested, and still the right thing to
+draw if a clock-time view ever comes back.
 
 ## Cut: the Patterns scatter plots
 
@@ -156,6 +197,13 @@ machinery than a fasting app's stats page wants — along with
 `HealthProvider.series` that only the weight pairing needed. The panels moved to
 Stats. Nothing in the app computes a correlation any more, by design: the panels
 show what happened and the user does the interpreting.
+
+One of those two scatters is back, on Stats, as the sleep panel above — dots
+only, no fit, no headline, no sub-screen. What was cut was the machinery around
+it; the plot itself turned out to be the only drawing of those two facts that
+answers the question they're paired for, and the timeline that replaced it
+couldn't. The weight scatter stays cut: weight answers over weeks, and the bars
+against the weekly line already show it.
 
 `-seedHistory` seeds three months of fasts; its stop times deliberately track
 the same wobble `FixtureHealthProvider` uses, so the panels line up rather than

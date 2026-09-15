@@ -3,8 +3,9 @@
 //  Fastino
 //
 //  The Apple Health section of the Stats screen (§4.8): the last thirty days of
-//  fasting with sleep and weight from Health, as two panels over one shared
-//  date axis.
+//  fasting with sleep and weight from Health, as two panels — weight over the
+//  week's fasting hours on a date axis, and one dot per night of when eating
+//  stopped against how long the sleep after it was.
 //
 //  It lives on Stats rather than behind a link of its own. A screen you have to
 //  go looking for is a screen most people never see, and these two panels are
@@ -15,8 +16,14 @@
 //  no common scale, and overlaying them invites reading a crossing as a
 //  correlation. Each panel is instead one *pairing* the user can act on — a
 //  thing they chose (how long they fasted, when they stopped eating) over the
-//  thing worth reading it against (weight, sleep) — with an axis each and the
-//  contract described on `fastingWeightPanel` keeping the two honest.
+//  thing worth reading it against (weight, sleep).
+//
+//  The two panels reach that differently, and deliberately. Weight and hours
+//  genuinely have no common unit, so `fastingWeightPanel` is dual-axis and the
+//  contract on it is what keeps the two honest. `sleepScatterPanel` puts its
+//  two facts on the two axes instead, one dot a night, because the thing it's
+//  for — does stopping earlier go with sleeping longer — is a question about
+//  quantities, and a timeline of the same two facts couldn't be read for it.
 //
 //  This is the one place in the app that uses Swift Charts. Aligned bars plus a
 //  line with a real date axis is what it's for; the seven-day strip above it
@@ -63,16 +70,15 @@ struct HealthPanels: View {
         FastingEngine.lastDays(fasts.records, now: .now, timeZone: .current, count: Self.dayCount)
     }
 
-    /// The domain both panels are drawn against. Taken from the fasting bars,
-    /// which always span the full window, so the axes line up even when Health
-    /// returns nothing.
+    /// The date domain the fasting/weight panel is drawn against. Taken from
+    /// the fasting bars, which always span the full window, so the axis is the
+    /// same even when Health returns nothing.
     ///
-    /// **Snapped out to whole weeks.** The top panel's bars are weekly, and a
-    /// week-wide bar hanging off a mid-week edge is drawn over the axis labels
-    /// rather than clipped tidily. Snapping also puts every grid line on a real
-    /// week boundary in both panels, which is what makes the two agree. The
-    /// window is still thirty days of *data*; it just starts on the user's
-    /// first day of the week.
+    /// **Snapped out to whole weeks.** The bars are weekly, and a week-wide bar
+    /// hanging off a mid-week edge is drawn over the axis labels rather than
+    /// clipped tidily. Snapping also puts every grid line on a real week
+    /// boundary. The window is still thirty days of *data*; it just starts on
+    /// the user's first day of the week.
     private var domain: ClosedRange<Date> {
         let days = bars
         guard let first = days.first?.date, let last = days.last?.date else {
@@ -86,7 +92,7 @@ struct HealthPanels: View {
     var body: some View {
         VStack(spacing: 12) {
             fastingWeightPanel
-            nightPanel
+            sleepScatterPanel
             footnote
         }
         .task(id: isVisible) {
@@ -115,7 +121,7 @@ struct HealthPanels: View {
     }
 
     private var footnote: some View {
-        Text("The top panel is by the week \u{2014} day to day, weight is mostly water, and one fast can't have moved a week's average. Below it, each column is the day a fast ended, so an evening's last meal sits with that night's sleep. Patterns show what went together in your own data \u{2014} not what caused what. Sleep and weight come from Apple Health and stay on this device; Fastino never writes to Health.")
+        Text("The top panel is by the week \u{2014} day to day, weight is mostly water, and one fast can't have moved a week's average. Below it, every night is one dot: across, when you stopped eating; up, how long you slept after. Patterns show what went together in your own data \u{2014} not what caused what. Sleep and weight come from Apple Health and stay on this device; Fastino never writes to Health.")
             .font(.flame(12.5, .semibold, relativeTo: .caption))
             .foregroundStyle(Theme.muted)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -125,7 +131,7 @@ struct HealthPanels: View {
 
     // MARK: Panels
 
-    /// Fasting hours with weight laid over them — the night panel's pairing,
+    /// Fasting hours with weight laid over them — the sleep panel's pairing,
     /// applied to the screen's other question.
     ///
     /// Same contract, same defence: the bars are **hours fasted**, grounded at
@@ -304,158 +310,191 @@ struct HealthPanels: View {
     }
 
 
-    /// The screen's centrepiece: how much sleep each night brought, with the
-    /// time eating stopped laid over it.
+    /// The screen's centrepiece: one dot for each night — across, when eating
+    /// stopped; up, how long the sleep that followed was.
     ///
-    /// The one dual-axis plot in the app, and the one place it earns itself:
-    /// the question this screen exists to ask is whether stopping earlier goes
-    /// with a longer night, and that is read by following the dots down while
-    /// the bars grow. **The left axis is clock time (the dots), the right is
-    /// hours asleep (the bars)** — the two never share numbers, so a crossing
-    /// means nothing and neither series is ever measured against the other's
-    /// scale. The clock series is projected onto the sleep scale purely so it
-    /// can be drawn; every label it carries is converted back.
-    private var nightPanel: some View {
+    /// **A scatter, because the question is about quantity.** This panel was a
+    /// timeline — a dot for the stop and a band for the night, on a shared
+    /// clock axis over thirty dated columns — and it couldn't be read for the
+    /// one thing it was drawn for: whether stopping earlier goes with sleeping
+    /// more. Hours asleep only existed there as the length of a band, which
+    /// the eye can't compare across thirty columns, so the user looked at a
+    /// month of their own data and couldn't tell. Here the two facts are the
+    /// two axes, so an earlier-stop-longer-sleep month is a cloud that slopes
+    /// down to the right, and a month where it made no difference is a cloud
+    /// with no slope — either of which is visible at a glance.
+    ///
+    /// **No fitted line, no headline, no number.** The scatter is the drawing
+    /// the "show what happened, the user interprets" rule allows; what it
+    /// forbids is a computed claim about one series explaining the other, and
+    /// that's what was cut with the old Trends screen (IMPLEMENTATION.md). The
+    /// dashed rule is the user's own planned stop time, so a dot to its right
+    /// reads as late.
+    ///
+    /// The dot's height is the day's **total** asleep — naps and all, overlaps
+    /// counted once — rather than the span of the main night: "how much did I
+    /// sleep" is the question, and a 40-minute nap after a short night is part
+    /// of the answer. Only nights with both a stop and a sleep are drawn; a day
+    /// with one and not the other has nothing to plot against.
+    private var sleepScatterPanel: some View {
         let stops = FastingEngine.eatingStops(
             fasts.records, now: .now, timeZone: .current, count: Self.dayCount
         )
         let nights = series.nights
-        let stopValues = stops.map(\.hoursFromMidnight)
-
-        // Sleep is the scale the chart is actually drawn in: its bars start at
-        // zero, so it's the one that must not be shifted or padded at the foot.
-        // Rounded up to a whole tick so the axis reads 0h/2h/…/8h rather than
-        // stopping at whatever the longest night happened to be.
-        let sleepStep: Double = (nights.map(\.hours).max() ?? 8) > 9 ? 4 : 2
-        let sleepUpper = max(((nights.map(\.hours).max() ?? 8) / sleepStep).rounded(.up) * sleepStep, sleepStep)
-
-        // The clock scale only has to cover the dots, with a little air so one
-        // never sits on the frame.
-        let low = (stopValues.min() ?? -6) - 0.5
-        let high = (stopValues.max() ?? 0) + 0.5
-        // The dashed line is context, not data. Let it widen the scale a little
-        // so "later than planned" is visible, but not so far that the dots
-        // collapse into a band — a schedule nobody is keeping is exactly when
-        // the actual times matter most.
-        let anchor = anchorHours(median: median(of: stopValues))
-            .filter { max(high, $0) - min(low, $0) <= (high - low) + 3 }
-        let clockLow = min(low, anchor ?? low)
-        let clockHigh = max(high, anchor ?? high)
-        let clockSpan = max(clockHigh - clockLow, 0.5)
-
-        /// Clock time → the sleep scale the chart is drawn in, and back again.
-        func project(_ clock: Double) -> Double {
-            (clock - clockLow) / clockSpan * sleepUpper
+        let nightsByDay = Dictionary(nights.map { ($0.date, $0) }, uniquingKeysWith: { first, _ in first })
+        let paired: [(stop: EatingStop, night: SleepNight)] = stops.compactMap { stop in
+            nightsByDay[stop.date].map { (stop: stop, night: $0) }
         }
-        func clock(at projected: Double) -> Double {
-            clockLow + projected / sleepUpper * clockSpan
-        }
-
-        // Ticks are picked on the clock scale and then projected, so they land
-        // on whole hours instead of on whatever fractions `.automatic` would
-        // choose out of a borrowed scale. A night plus an evening spans half a
-        // day, where two-hour ticks would stack a dozen labels into the frame.
-        let step: Double = clockSpan > 12 ? 4 : 2
-        var ticks: [Double] = []
-        var tick = (clockLow / step).rounded(.up) * step
-        while tick <= clockHigh {
-            ticks.append(tick)
-            tick += step
-        }
-        let projectedTicks = ticks.map(project)
+        let points = paired.map { (stop: $0.stop.hoursFromMidnight, asleep: $0.night.hours) }
+        let anchor = anchorHours(median: median(of: stops.map(\.hoursFromMidnight)))
+        let scale = SleepScatterScale.scale(nights: points, anchor: anchor)
+        // The one summary: the average night either side of the planned stop.
+        // Two means read against the user's own line — not a fit, and never a
+        // "because". Absent when either side is too thin to average.
+        let split = SleepSplit.summary(nights: points, anchor: scale?.anchor)
 
         return Panel(
             title: "STOPPED EATING & SLEEP",
-            caption: nights.isEmpty ? "clock time" : "clock time \u{00B7} hours asleep",
-            legend: nights.isEmpty ? [LegendItem(color: Theme.brand, label: "stopped eating", isBar: false)] : [
-                LegendItem(color: Theme.brand, label: "stopped eating", isBar: false),
-                LegendItem(color: Theme.mutedFlame.opacity(0.55), label: "hours asleep", isBar: true)
-            ],
-            // Merging the panels cost the sleep series its own empty state, so
-            // it says so here instead — otherwise a missing series just looks
-            // like a screen with fewer things on it.
+            caption: "one dot a night",
+            // A missing series would otherwise just look like a screen with
+            // fewer things on it.
             note: nights.isEmpty && !isLoading && !stops.isEmpty ? Self.noDataMessage("sleep") : nil,
-            domain: domain,
+            domain: nil,
             height: 132,
-            showsDateAxis: true
-        ) {
-            if stops.isEmpty && nights.isEmpty {
-                EmptyPanelMessage(isLoading ? "Reading from Health\u{2026}" : "Nothing to show yet.")
-            } else {
+            showsDateAxis: false,
+            content: {
+            if let scale {
                 Chart {
-                    ForEach(nights) { night in
-                        BarMark(
-                            x: .value("Day", night.date, unit: .day),
-                            y: .value("Hours asleep", night.hours),
-                            width: .ratio(0.62)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                        .foregroundStyle(Theme.mutedFlame.opacity(0.55))
-                        .accessibilityLabel(night.date.formatted(.dateTime.month().day()))
-                        // The bar is the total, naps included, with the
-                        // night's main stretch — which the bar doesn't show —
-                        // named here.
-                        .accessibilityValue(
-                            "\(DurationFormat.hoursMinutes(night.asleep)) asleep, mainly \(TimeFormat.timeOfDay(hoursFromMidnight: hours(of: night.mainSleepStart, from: night.date))) to \(TimeFormat.timeOfDay(hoursFromMidnight: hours(of: night.mainSleepEnd, from: night.date)))"
-                        )
-                    }
-
-                    ForEach(stops) { stop in
-                        LineMark(
-                            x: .value("Day", stop.date),
-                            y: .value("Stopped", project(stop.hoursFromMidnight))
-                        )
-                        .interpolationMethod(.monotone)
-                        .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round))
-                        .foregroundStyle(Theme.brand.opacity(0.35))
-                        .accessibilityHidden(true)
-
-                        PointMark(
-                            x: .value("Day", stop.date),
-                            y: .value("Stopped", project(stop.hoursFromMidnight))
-                        )
-                        .symbolSize(42)
-                        .foregroundStyle(Theme.brand)
-                        .accessibilityLabel(stop.date.formatted(.dateTime.month().day()))
-                        .accessibilityValue(
-                            "stopped eating \(TimeFormat.timeOfDay(hoursFromMidnight: stop.hoursFromMidnight))"
-                        )
-                    }
-
-                    if let anchor {
-                        RuleMark(y: .value("Planned", project(anchor)))
+                    // The time they meant to stop, so a dot to its right reads
+                    // as late. Drawn first, so it sits under the dots.
+                    if let anchor = scale.anchor {
+                        RuleMark(x: .value("Planned", anchor))
                             .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                             .foregroundStyle(Theme.accentText.opacity(0.5))
                             .accessibilityHidden(true)
                     }
-                }
-                .chartYScale(domain: 0...sleepUpper)
-                .chartYAxis {
-                    if stops.isEmpty {
-                        hoursAxis(every: sleepStep)
-                    } else {
-                        overlayAxis(at: projectedTicks) {
-                            TimeFormat.timeOfDay(hoursFromMidnight: clock(at: $0))
-                        }
-                        if !nights.isEmpty {
-                            hoursAxis(position: .trailing, every: sleepStep)
-                        }
+
+                    // Each side's mean, as a level running the width of that
+                    // side, so the comparison is a glance before it's a number.
+                    if let split {
+                        RuleMark(
+                            xStart: .value("From", scale.xDomain.lowerBound),
+                            xEnd: .value("To", split.threshold),
+                            y: .value("Average asleep", split.earlier.meanHours)
+                        )
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                        .foregroundStyle(Theme.accentText.opacity(0.55))
+                        .accessibilityHidden(true)
+                        RuleMark(
+                            xStart: .value("From", split.threshold),
+                            xEnd: .value("To", scale.xDomain.upperBound),
+                            y: .value("Average asleep", split.later.meanHours)
+                        )
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                        .foregroundStyle(Theme.accentText.opacity(0.55))
+                        .accessibilityHidden(true)
+                    }
+
+                    ForEach(paired, id: \.stop.id) { pair in
+                        PointMark(
+                            x: .value("Stopped", pair.stop.hoursFromMidnight),
+                            y: .value("Asleep", pair.night.hours)
+                        )
+                        .symbolSize(42)
+                        // Not quite opaque, so two nights that landed on the
+                        // same spot read as one darker dot rather than one.
+                        .foregroundStyle(Theme.brand.opacity(0.85))
+                        .accessibilityLabel(pair.stop.date.formatted(.dateTime.month().day()))
+                        .accessibilityValue(
+                            "stopped eating \(TimeFormat.timeOfDay(hoursFromMidnight: pair.stop.hoursFromMidnight)), \(DurationFormat.hoursMinutes(pair.night.asleep)) asleep"
+                        )
                     }
                 }
+                .chartXScale(domain: scale.xDomain)
+                .chartYScale(domain: scale.yDomain)
+                .chartXAxis { stopAxis(at: scale.xTicks) }
+                .chartYAxis { hoursAxis(values: scale.yTicks) }
+                // A stop that doesn't set the scale (`SleepScatterScale`'s ±8h
+                // rule) can still fall outside it, and Swift Charts will
+                // happily draw a `PointMark` outside the plot area — a dot
+                // floating beside the card, which reads as a bug rather than as
+                // data. Clipped, it stays in the accessibility tree and out of
+                // the picture.
+                .chartPlotStyle { $0.clipped() }
+            } else {
+                EmptyPanelMessage(isLoading ? "Reading from Health\u{2026}" : "Nothing to show yet.")
             }
-        }
+        }, summary: {
+            // The same two means as the levels on the chart, as a pair of
+            // tiles: the numbers are the panel's answer, and a sentence in
+            // the caption face was the least visible thing on the screen.
+            if let split {
+                let time = TimeFormat.timeOfDay(hoursFromMidnight: split.threshold)
+                HStack(spacing: 10) {
+                    SplitTile(
+                        label: "STOPPED BY \(time)",
+                        hours: split.earlier.meanHours,
+                        nights: split.earlier.nights
+                    )
+                    SplitTile(
+                        label: "AFTER \(time)",
+                        hours: split.later.meanHours,
+                        nights: split.later.nights
+                    )
+                }
+                if !split.isAnchor {
+                    Text("Split at your usual stop time.")
+                        .font(.flame(12, .semibold, relativeTo: .caption2))
+                        .foregroundStyle(Theme.muted)
+                        .padding(.top, 6)
+                }
+            }
+        })
     }
 
+    /// One side of the split: the average night, and how many nights it's
+    /// made of. The bento's label / number / caption stack, on the peach
+    /// surface the goal-rate card uses, without a shadow — it sits inside the
+    /// panel's card, not on the page.
+    private struct SplitTile: View {
+        let label: String
+        let hours: Double
+        let nights: Int
+
+        @Environment(\.colorScheme) private var colorScheme
+
+        var body: some View {
+            let palette = Theme.palette(for: colorScheme)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(label)
+                    .flameSectionLabel(palette.onAccentSurface.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text(DurationFormat.hoursMinutes(hours * 3600))
+                    .font(.flame(26, .extraBold, relativeTo: .title2))
+                    .foregroundStyle(palette.accentText.color)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .padding(.top, 2)
+                Text("average over \(nights) nights")
+                    .font(.flame(12, .semibold, relativeTo: .caption))
+                    .foregroundStyle(palette.onAccentSurface.color)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(palette.accentSurface.color, in: .rect(cornerRadius: Radius.smallCard))
+            .accessibilityElement(children: .combine)
+        }
+    }
 
     private func median(of values: [Double]) -> Double? {
         guard !values.isEmpty else { return nil }
         return values.sorted()[values.count / 2]
-    }
-
-    /// Signed hours from a day's midnight — the shared scale, unwrapped so it
-    /// stays continuous through midnight.
-    private func hours(of instant: Date, from day: Date) -> Double {
-        instant.timeIntervalSince(day) / 3600
     }
 
     /// The user's start-time anchor — when they *meant* to stop — as a dashed
@@ -487,16 +526,18 @@ struct HealthPanels: View {
         )
     }
 
-    /// The left-hand axis of a dual-axis panel: labels for the projected
-    /// series, at positions already mapped onto the chart's own scale.
+    /// The left-hand axis of the weight panel: labels for the projected weight
+    /// series, at positions already mapped onto the hours scale the chart is
+    /// drawn in.
     ///
-    /// The values are chosen in the series' own units and projected, because
-    /// `.automatic` on a borrowed scale lands on arbitrary fractions of it —
-    /// and "-3.5h" is not a time anyone recognises, nor "79.34" a weight.
+    /// The values are chosen in kilograms and projected, because `.automatic`
+    /// on a borrowed scale lands on arbitrary fractions of it, and "79.34" is
+    /// not a weight anyone recognises.
     ///
-    /// No grid line: the lines across these panels belong to the hours axis
-    /// the bars are measured against, and a second set at these ticks would
-    /// invite reading a bar's top in the wrong units.
+    /// No grid line: the lines across that panel belong to the hours axis the
+    /// bars are measured against, and a second set at these ticks would invite
+    /// reading a bar's top in the wrong units. The scatter has no such
+    /// problem — it has one scale — and draws its own lines in `stopAxis`.
     private func overlayAxis(at values: [Double], label: @escaping (Double) -> String) -> some AxisContent {
         AxisMarks(position: .leading, values: values) { value in
             AxisValueLabel {
@@ -510,38 +551,111 @@ struct HealthPanels: View {
         }
     }
 
-    /// `every` pins the ticks to whole hours, which the night panel needs: its
-    /// scale is sized to the longest night, and `.automatic` on that domain
-    /// labels 0h and 5h and leaves the reader to guess where the bars end.
-    private func hoursAxis(position: AxisMarkPosition = .leading, every: Double? = nil) -> some AxisContent {
-        AxisMarks(position: position, values: every.map { .stride(by: $0) } ?? .automatic(desiredCount: 3)) { value in
+    /// An hours axis — the scale the weight panel's bars are grounded in, and
+    /// the only one in that panel allowed to draw grid lines; and the scatter's
+    /// y axis, where it's the only scale there is.
+    ///
+    /// The scatter passes its ticks, chosen on whole hours by
+    /// `SleepScatterScale`; the weight panel leaves them to `.automatic`.
+    @AxisContentBuilder
+    private func hoursAxis(position: AxisMarkPosition = .leading, values: [Double]? = nil) -> some AxisContent {
+        if let values {
+            AxisMarks(position: position, values: values) { value in hoursMark(value) }
+        } else {
+            AxisMarks(position: position, values: .automatic(desiredCount: 3)) { value in hoursMark(value) }
+        }
+    }
+
+    @AxisMarkBuilder
+    private func hoursMark(_ value: AxisValue) -> some AxisMark {
+        AxisGridLine().foregroundStyle(Theme.divider)
+        AxisValueLabel {
+            if let hours = value.as(Double.self) {
+                Text("\(Int(hours))h")
+                    .font(.flameFixed(10, .bold))
+                    .foregroundStyle(Theme.muted)
+            }
+        }
+    }
+
+    /// The scatter's x axis: the clock time eating stopped, labelled at whole
+    /// hours. `TimeFormat.timeOfDay` wraps the signed values, so an evening
+    /// stop measured as −4 is printed as 20.00.
+    ///
+    /// It draws grid lines where `overlayAxis` must not: that axis labels a
+    /// series projected into someone else's scale, where a line would invite
+    /// reading a bar top in the wrong units; this one *is* the chart's scale.
+    private func stopAxis(at values: [Double]) -> some AxisContent {
+        AxisMarks(position: .bottom, values: values) { value in
             AxisGridLine().foregroundStyle(Theme.divider)
             AxisValueLabel {
                 if let hours = value.as(Double.self) {
-                    Text("\(Int(hours))h")
+                    Text(TimeFormat.timeOfDay(hoursFromMidnight: hours))
                         .font(.flameFixed(10, .bold))
                         .foregroundStyle(Theme.muted)
+                        .fixedSize()
                 }
             }
         }
     }
 
-    /// One panel, one pairing. Both panels draw the date labels: the axis is
-    /// shared, but the weekly bars are unreadable without their weeks named,
-    /// and the labels land on the same week boundaries in both.
-    private struct Panel<Content: View>: View {
+    /// One panel, one pairing. A panel with a `domain` is drawn over the
+    /// shared 30-day date axis, week lines and labels included; one without it
+    /// brings its own x axis.
+    private struct Panel<Content: View, Summary: View>: View {
         let title: String
         let caption: String
         /// Series key, for the one panel carrying two of them.
         var legend: [LegendItem] = []
         /// Shown under the key when one of the panel's series has no data.
         var note: String?
-        /// Every panel is scaled to the same 30 days, so the plot areas line up
-        /// column for column even when one series has fewer points.
-        let domain: ClosedRange<Date>
+        /// Shown under the chart: the panel's one summary of what it drew.
+        let summary: Summary
+        /// The shared 30-day window, for a panel drawn against dates. `nil`
+        /// for one whose x axis is something else — it sets its own.
+        let domain: ClosedRange<Date>?
         var height: CGFloat = 96
         let showsDateAxis: Bool
-        @ViewBuilder let content: Content
+        let content: Content
+
+        init(
+            title: String,
+            caption: String,
+            legend: [LegendItem] = [],
+            note: String? = nil,
+            domain: ClosedRange<Date>?,
+            height: CGFloat = 96,
+            showsDateAxis: Bool,
+            @ViewBuilder content: () -> Content,
+            @ViewBuilder summary: () -> Summary
+        ) {
+            self.title = title
+            self.caption = caption
+            self.legend = legend
+            self.note = note
+            self.domain = domain
+            self.height = height
+            self.showsDateAxis = showsDateAxis
+            self.content = content()
+            self.summary = summary()
+        }
+
+        init(
+            title: String,
+            caption: String,
+            legend: [LegendItem] = [],
+            note: String? = nil,
+            domain: ClosedRange<Date>?,
+            height: CGFloat = 96,
+            showsDateAxis: Bool,
+            @ViewBuilder content: () -> Content
+        ) where Summary == EmptyView {
+            self.init(
+                title: title, caption: caption, legend: legend, note: note,
+                domain: domain, height: height, showsDateAxis: showsDateAxis,
+                content: content, summary: { EmptyView() }
+            )
+        }
 
         var body: some View {
             VStack(alignment: .leading, spacing: 0) {
@@ -583,6 +697,21 @@ struct HealthPanels: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 8)
                 }
+                dated(content)
+                    .frame(height: height)
+                    .padding(.top, 10)
+                    .padding(.trailing, 10)
+                summary
+                    .padding(.top, 12)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .flameCard()
+        }
+
+        @ViewBuilder
+        private func dated(_ content: Content) -> some View {
+            if let domain {
                 content
                     .chartXScale(domain: domain)
                     .chartXAxis {
@@ -605,13 +734,9 @@ struct HealthPanels: View {
                             }
                         }
                     }
-                    .frame(height: height)
-                    .padding(.top, 10)
-                    .padding(.trailing, 10)
+            } else {
+                content
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .flameCard()
         }
     }
 

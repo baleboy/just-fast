@@ -51,11 +51,16 @@ nonisolated struct SleepNight: Equatable, Sendable, Identifiable {
     /// Time actually asleep, with overlapping samples counted once. Includes
     /// naps, so it can exceed the main sleep's span.
     let asleep: TimeInterval
-    /// When the night's *longest* stretch of sleep began and ended.
+    /// When the night itself began and ended — the day's *main* sleep, from
+    /// first dropping off to finally getting up.
     ///
-    /// The longest stretch rather than first-to-last, because an afternoon nap
-    /// would otherwise stretch the night from last evening to this teatime and
-    /// the "when did you sleep" chart (§4.8) would be nonsense.
+    /// The main sleep rather than first-to-last, because an afternoon nap would
+    /// otherwise stretch the night from last evening to this teatime and the
+    /// night chart (§4.8) would be nonsense. It is *not* the longest unbroken
+    /// stretch, which is a different thing and was the bug it replaced: a watch
+    /// scores brief awakenings all night, so the longest unbroken run of an
+    /// eight-hour night is routinely an hour or two. `SleepAggregator.nightGap`
+    /// is what separates a break in a sleep from a new one.
     let mainSleepStart: Date
     let mainSleepEnd: Date
 
@@ -63,8 +68,9 @@ nonisolated struct SleepNight: Equatable, Sendable, Identifiable {
 
     var hours: Double { asleep / 3600 }
 
-    /// The main stretch's length — shorter than `asleep` on a night with a nap,
-    /// longer than nothing on a fragmented one.
+    /// The night's span, wall clock. Longer than the sleep it contains whenever
+    /// the night was broken, and shorter than `asleep` on a day with a nap in
+    /// it as well.
     var mainSleepDuration: TimeInterval { mainSleepEnd.timeIntervalSince(mainSleepStart) }
 }
 

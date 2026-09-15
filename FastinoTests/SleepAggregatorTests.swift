@@ -117,7 +117,7 @@ struct SleepAggregatorTests {
         #expect(hours(nights[0].asleep) == 8.75)
     }
 
-    @Test("The main sleep is the night's longest stretch, not first-to-last")
+    @Test("The main sleep is the night, not the whole day's first-to-last")
     func napDoesNotStretchTheNight() {
         // An afternoon nap would otherwise run the "when did you sleep" bar
         // from last evening to this teatime.
@@ -134,8 +134,8 @@ struct SleepAggregatorTests {
 
     @Test("A fragmented night reports a span longer than the time asleep")
     func fragmentedNight() {
-        // Awake for an hour in the middle: two stretches, so the longest is the
-        // main sleep and the total counts both.
+        // Awake for an hour in the middle. It is still one night: the span
+        // covers the hour, the total does not.
         let spans = [
             span(date(2026, 3, 10, 23), date(2026, 3, 11, 3)),
             span(date(2026, 3, 11, 4), date(2026, 3, 11, 7))
@@ -144,7 +144,68 @@ struct SleepAggregatorTests {
 
         #expect(hours(night.asleep) == 7)
         #expect(night.mainSleepStart == date(2026, 3, 10, 23))
-        #expect(hours(night.mainSleepDuration) == 4)
+        #expect(night.mainSleepEnd == date(2026, 3, 11, 7))
+        #expect(hours(night.mainSleepDuration) == 8)
+    }
+
+    /// The regression that sent this back to the drawing board. A watch scores
+    /// brief awakenings all night, so an eight-hour night arrives as a dozen
+    /// short stretches — and taking the longest of them drew it as a two-hour
+    /// smear at a random offset inside the night.
+    @Test("A watch-scored night is one band, not its longest doze")
+    func watchScoredNightIsOneNight() {
+        var spans: [SleepSpan] = []
+        var cursor = date(2026, 3, 10, 23)
+        // 90 minutes asleep, 6 minutes awake, over and over.
+        while cursor < date(2026, 3, 11, 7) {
+            let wake = min(cursor.addingTimeInterval(90 * 60), date(2026, 3, 11, 7))
+            spans.append(span(cursor, wake))
+            cursor = wake.addingTimeInterval(6 * 60)
+        }
+        #expect(spans.count > 4)
+
+        let night = SleepAggregator.nights(from: spans, timeZone: utc)[0]
+
+        // One band, spanning the whole night — not the ninety minutes of its
+        // longest doze.
+        #expect(night.mainSleepStart == spans.first!.start)
+        #expect(night.mainSleepEnd == spans.last!.end)
+        #expect(hours(night.mainSleepDuration) > 7.5)
+        // The awake minutes are in the span but not in the total.
+        #expect(night.asleep < night.mainSleepDuration)
+        #expect(hours(night.asleep) > 7.4)
+    }
+
+    /// Getting up at 05.00 and going back to bed at 06.00 is still one night;
+    /// the gap rule has to be wider than a restless hour.
+    @Test("An hour up in the small hours is still one night")
+    func anHourUpIsStillOneNight() {
+        let spans = [
+            span(date(2026, 3, 10, 23), date(2026, 3, 11, 5)),
+            span(date(2026, 3, 11, 6), date(2026, 3, 11, 8))
+        ]
+        let night = SleepAggregator.nights(from: spans, timeZone: utc)[0]
+
+        #expect(night.mainSleepEnd == date(2026, 3, 11, 8))
+        #expect(hours(night.mainSleepDuration) == 9)
+    }
+
+    /// The main sleep is the one with the most sleep in it, not the widest
+    /// span — a long restless doze must not outrank the night beside it.
+    @Test("Main sleep is the most sleep, not the widest span")
+    func mainSleepIsTheMostSleep() {
+        let spans = [
+            // A solid seven-hour night.
+            span(date(2026, 3, 10, 23), date(2026, 3, 11, 6)),
+            // An eight-hour afternoon of dozing that adds up to three.
+            span(date(2026, 3, 11, 12), date(2026, 3, 11, 13, 30)),
+            span(date(2026, 3, 11, 17), date(2026, 3, 11, 18, 30)),
+            span(date(2026, 3, 11, 19, 30), date(2026, 3, 11, 20))
+        ]
+        let night = SleepAggregator.nights(from: spans, timeZone: utc)[0]
+
+        #expect(night.mainSleepStart == date(2026, 3, 10, 23))
+        #expect(night.mainSleepEnd == date(2026, 3, 11, 6))
     }
 
     @Test("Overlapping sources give one span, not two")

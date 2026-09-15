@@ -66,6 +66,13 @@ nonisolated protocol HealthProvider: Sendable {
 
 /// Deterministic stand-in for previews and tests. Generates a plausible month
 /// of sleep and a slow downward weight drift without touching HealthKit.
+///
+/// The sleep goes through `SleepAggregator` as raw spans rather than being
+/// handed over as finished nights, and the spans are **fragmented the way a
+/// watch fragments them** — ninety minutes at a time with a few minutes awake
+/// between. Handing over clean nights is what hid a real bug: the night chart
+/// was drawing the longest unbroken doze instead of the night, which no
+/// fixture-driven preview could ever have shown.
 nonisolated struct FixtureHealthProvider: HealthProvider {
     var isAvailable = true
     var asked = true
@@ -82,7 +89,7 @@ nonisolated struct FixtureHealthProvider: HealthProvider {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = timeZone
 
-        var nights: [SleepNight] = []
+        var spans: [SleepSpan] = []
         var weights: [WeightPoint] = []
 
         for offset in (0..<days).reversed() {
@@ -92,19 +99,25 @@ nonisolated struct FixtureHealthProvider: HealthProvider {
 
             // A gap every eleventh day, so the empty-day handling is visible.
             if offset % 11 != 3 {
-                // Asleep around 23:15 the evening before, with the night's
-                // length wobbling, and a little fragmentation on top.
-                let onset = -0.75 + wobble * 0.45
+                // Asleep around 23:15 the evening before, with both the bedtime
+                // and the night's length wobbling.
+                let onset = -0.75 + wobble * 0.9
                 let slept = 7.1 + wobble * 0.8
-                let start = date.addingTimeInterval(onset * 3600)
-                nights.append(
-                    SleepNight(
-                        date: date,
-                        asleep: slept * 3600,
-                        mainSleepStart: start,
-                        mainSleepEnd: start.addingTimeInterval((slept + 0.35) * 3600)
-                    )
-                )
+                var cursor = date.addingTimeInterval(onset * 3600)
+                let wake = cursor.addingTimeInterval(slept * 3600)
+                while cursor < wake {
+                    let until = min(cursor.addingTimeInterval(90 * 60), wake)
+                    spans.append(SleepSpan(start: cursor, end: until, stage: .asleep))
+                    // Briefly awake, the way a watch scores it — short enough
+                    // to stay one night.
+                    cursor = until.addingTimeInterval(7 * 60)
+                }
+                // An afternoon nap now and then, which must land in the day's
+                // total without stretching the night's band.
+                if offset % 7 == 2 {
+                    let nap = date.addingTimeInterval(14.5 * 3600)
+                    spans.append(SleepSpan(start: nap, end: nap.addingTimeInterval(40 * 60), stage: .asleep))
+                }
             }
             if offset % 3 == 0 {
                 // A slow drift down, so the weekly means have something to
@@ -114,6 +127,10 @@ nonisolated struct FixtureHealthProvider: HealthProvider {
             }
         }
 
-        return HealthSeries(nights: nights, weights: weights, massUnit: .kilograms)
+        return HealthSeries(
+            nights: SleepAggregator.nights(from: spans, timeZone: timeZone),
+            weights: weights,
+            massUnit: .kilograms
+        )
     }
 }
